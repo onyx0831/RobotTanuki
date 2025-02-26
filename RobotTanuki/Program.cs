@@ -9,8 +9,16 @@ namespace RobotTanuki
         public const string USI_Ponder = "USI_Ponder";
         public const string USI_Hash = "USI_Hash";
 
+        public static void Initialize()
+        {
+            // Position.Initialize();
+            Types.Initialize();
+        }
+
         void Run()
         {
+
+            Initialize();
             var position = new Position();
             
             string line;
@@ -39,6 +47,26 @@ namespace RobotTanuki
                     case "usinewgame":
                     case "setoption":
                     case "position":
+                        Debug.Assert(split.Length >= 2);
+                        int nextIndex;
+                        if (split[1] == "sfen")
+                        {
+                            var sfen = string.Join(" ", split.Skip(2).Take(4));
+                            position.Set(sfen);
+                            nextIndex = 6;
+                        }
+                        else if (split[1] == "startpos")
+                        {
+                            position.Set(Position.StartposSfen);
+                            nextIndex = 2;
+                        }
+                        else
+                        {
+                            throw new Exception($"不正なpositionコマンドです: {line}");
+                        }
+                        // TODO: 指し手のパース（後日実装）
+                        break;
+
                     case "stop":
                     case "ponderhit":
                     case "gameover":
