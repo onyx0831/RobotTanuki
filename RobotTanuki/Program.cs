@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace RobotTanuki
 {
@@ -9,6 +11,8 @@ namespace RobotTanuki
 
         void Run()
         {
+            var position = new Position();
+            
             string line;
             while ((line = Console.ReadLine()) != null)
             {
@@ -47,6 +51,11 @@ namespace RobotTanuki
 
                     case "quit":
                         return;
+
+                    // 以下デバッグ用コマンド
+                    case "d":
+                        Console.WriteLine(position);
+                        break;
 
                     default:
                         Console.WriteLine($"info string Unsupported command: {command}");
