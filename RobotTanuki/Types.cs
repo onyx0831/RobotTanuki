@@ -50,13 +50,268 @@ namespace RobotTanuki
         NumPieces, // 駒の種類数
     }
 
+    public class Direction
+    {
+        public int DeltaFile { get; set; }
+        public int DeltaRank { get; set; }
+    }
+
+    public class MoveDirection
+    {
+        public Direction Direction { get; set; }
+        public bool Long { get; set; } = false;
+    }
+
     /// <summary>
     /// 型変換などのユーティリティクラス
     /// </summary>
     public static class Types
     {
         public static Piece[] CharToPiece { get; } = new Piece[128];
+        private static char[] PieceToChar { get; } = new char[(int)Piece.NumPieces];
         private static Piece[] NonPromotedToPromoted { get; } = new Piece[(int)Piece.NumPieces];
+
+        private static Direction UpLeft = new Direction { DeltaFile = +1, DeltaRank = -1 };
+        private static Direction Up = new Direction { DeltaFile = 0, DeltaRank = -1 };
+        private static Direction UpRight = new Direction { DeltaFile = -1, DeltaRank = -1 };
+        private static Direction Left = new Direction { DeltaFile = +1, DeltaRank = 0 };
+        private static Direction Right = new Direction { DeltaFile = -1, DeltaRank = 0 };
+        private static Direction DownLeft = new Direction { DeltaFile = +1, DeltaRank = +1 };
+        private static Direction Down = new Direction { DeltaFile = 0, DeltaRank = +1 };
+        private static Direction DownRight = new Direction { DeltaFile = -1, DeltaRank = +1 };
+
+        public static List<MoveDirection>[] MoveDirections = {
+            // NoPiece
+            null,
+            // BlackPawn
+            new List<MoveDirection>{
+                new MoveDirection{Direction=Up},
+            },
+            // BlackLance
+            new List<MoveDirection>{
+                new MoveDirection{Direction=Up,Long=true},
+            },
+            // BlackKnight
+            new List<MoveDirection>{
+                new MoveDirection{Direction=new Direction{DeltaRank=-2,DeltaFile=+1}},
+                new MoveDirection{Direction=new Direction{DeltaRank=-2,DeltaFile=-1}},
+            },
+            // BlackSilver
+            new List<MoveDirection>{
+                new MoveDirection{Direction=UpLeft},
+                new MoveDirection{Direction=Up},
+                new MoveDirection{Direction=UpRight},
+                new MoveDirection{Direction=DownLeft},
+                new MoveDirection{Direction=DownRight},
+            },
+            // BlackGold
+            new List<MoveDirection>{
+                new MoveDirection{Direction=UpLeft},
+                new MoveDirection{Direction=Up},
+                new MoveDirection{Direction=UpRight},
+                new MoveDirection{Direction=Left},
+                new MoveDirection{Direction=Right},
+                new MoveDirection{Direction=Down},
+            },
+            // BlackBishop
+            new List<MoveDirection>{
+                new MoveDirection{Direction=UpLeft,Long=true},
+                new MoveDirection{Direction=UpRight,Long=true},
+                new MoveDirection{Direction=DownLeft,Long=true},
+                new MoveDirection{Direction=DownRight,Long=true},
+            },
+            // BlackRook
+            new List<MoveDirection>{
+                new MoveDirection{Direction=Up,Long=true},
+                new MoveDirection{Direction=Left,Long=true},
+                new MoveDirection{Direction=Right,Long=true},
+                new MoveDirection{Direction=Down,Long=true},
+            },
+            // BlackKing
+            new List<MoveDirection>{
+                new MoveDirection{Direction=UpLeft},
+                new MoveDirection{Direction=Up},
+                new MoveDirection{Direction=UpRight},
+                new MoveDirection{Direction=Left},
+                new MoveDirection{Direction=Right},
+                new MoveDirection{Direction=DownLeft},
+                new MoveDirection{Direction=Down},
+                new MoveDirection{Direction=DownRight},
+            },
+            // BlackPromotedPawn
+            new List<MoveDirection>{
+                new MoveDirection{Direction=UpLeft},
+                new MoveDirection{Direction=Up},
+                new MoveDirection{Direction=UpRight},
+                new MoveDirection{Direction=Left},
+                new MoveDirection{Direction=Right},
+                new MoveDirection{Direction=Down},
+            },
+            // BlackPromotedLance
+            new List<MoveDirection>{
+                new MoveDirection{Direction=UpLeft},
+                new MoveDirection{Direction=Up},
+                new MoveDirection{Direction=UpRight},
+                new MoveDirection{Direction=Left},
+                new MoveDirection{Direction=Right},
+                new MoveDirection{Direction=Down},
+            },
+            // BlackPromotedKnight
+            new List<MoveDirection>{
+                new MoveDirection{Direction=UpLeft},
+                new MoveDirection{Direction=Up},
+                new MoveDirection{Direction=UpRight},
+                new MoveDirection{Direction=Left},
+                new MoveDirection{Direction=Right},
+                new MoveDirection{Direction=Down},
+            },
+            // BlackPromotedSilver
+            new List<MoveDirection>{
+                new MoveDirection{Direction=UpLeft},
+                new MoveDirection{Direction=Up},
+                new MoveDirection{Direction=UpRight},
+                new MoveDirection{Direction=Left},
+                new MoveDirection{Direction=Right},
+                new MoveDirection{Direction=Down},
+            },
+            // BlackHorse
+            new List<MoveDirection>{
+                new MoveDirection{Direction=UpLeft,Long=true},
+                new MoveDirection{Direction=Up},
+                new MoveDirection{Direction=UpRight,Long=true},
+                new MoveDirection{Direction=Left},
+                new MoveDirection{Direction=Right},
+                new MoveDirection{Direction=DownLeft,Long=true},
+                new MoveDirection{Direction=Down},
+                new MoveDirection{Direction=DownRight,Long=true},
+            },
+            // BlackDragon
+            new List<MoveDirection>{
+                new MoveDirection{Direction=UpLeft},
+                new MoveDirection{Direction=Up,Long=true},
+                new MoveDirection{Direction=UpRight},
+                new MoveDirection{Direction=Left,Long=true},
+                new MoveDirection{Direction=Right,Long=true},
+                new MoveDirection{Direction=DownLeft},
+                new MoveDirection{Direction=Down,Long=true},
+                new MoveDirection{Direction=DownRight},
+            },
+            // WhitePawn
+            new List<MoveDirection>{
+                new MoveDirection{Direction=Down},
+            },
+            // WhiteLance
+            new List<MoveDirection>{
+                new MoveDirection{Direction=Down,Long=true},
+            },
+            // WhiteKnight
+            new List<MoveDirection>{
+                new MoveDirection{Direction=new Direction{DeltaRank=2,DeltaFile=+1}},
+                new MoveDirection{Direction=new Direction{DeltaRank=2,DeltaFile=-1}},
+            },
+            // WhiteSilver
+            new List<MoveDirection>{
+                new MoveDirection{Direction=UpLeft},
+                new MoveDirection{Direction=UpRight},
+                new MoveDirection{Direction=DownLeft},
+                new MoveDirection{Direction=Down},
+                new MoveDirection{Direction=DownRight},
+            },
+            // WhiteGold
+            new List<MoveDirection>{
+                new MoveDirection{Direction=Up},
+                new MoveDirection{Direction=Left},
+                new MoveDirection{Direction=Right},
+                new MoveDirection{Direction=DownLeft},
+                new MoveDirection{Direction=Down},
+                new MoveDirection{Direction=DownRight},
+            },
+            // WhiteBishop
+            new List<MoveDirection>{
+                new MoveDirection{Direction=UpLeft,Long=true},
+                new MoveDirection{Direction=UpRight,Long=true},
+                new MoveDirection{Direction=DownLeft,Long=true},
+                new MoveDirection{Direction=DownRight,Long=true},
+            },
+            // WhiteRook
+            new List<MoveDirection>{
+                new MoveDirection{Direction=Up,Long=true},
+                new MoveDirection{Direction=Left,Long=true},
+                new MoveDirection{Direction=Right,Long=true},
+                new MoveDirection{Direction=Down,Long=true},
+            },
+            // WhiteKing
+            new List<MoveDirection>{
+                new MoveDirection{Direction=UpLeft},
+                new MoveDirection{Direction=Up},
+                new MoveDirection{Direction=UpRight},
+                new MoveDirection{Direction=Left},
+                new MoveDirection{Direction=Right},
+                new MoveDirection{Direction=DownLeft},
+                new MoveDirection{Direction=Down},
+                new MoveDirection{Direction=DownRight},
+            },
+            // WhitePromotedPawn
+            new List<MoveDirection>{
+                new MoveDirection{Direction=Up},
+                new MoveDirection{Direction=Left},
+                new MoveDirection{Direction=Right},
+                new MoveDirection{Direction=DownLeft},
+                new MoveDirection{Direction=Down},
+                new MoveDirection{Direction=DownRight},
+            },
+            // WhitePromotedLance
+            new List<MoveDirection>{
+                new MoveDirection{Direction=Up},
+                new MoveDirection{Direction=Left},
+                new MoveDirection{Direction=Right},
+                new MoveDirection{Direction=DownLeft},
+                new MoveDirection{Direction=Down},
+                new MoveDirection{Direction=DownRight},
+            },
+            // WhitePromotedKnight
+            new List<MoveDirection>{
+                new MoveDirection{Direction=Up},
+                new MoveDirection{Direction=Left},
+                new MoveDirection{Direction=Right},
+                new MoveDirection{Direction=DownLeft},
+                new MoveDirection{Direction=Down},
+                new MoveDirection{Direction=DownRight},
+            },
+            // WhitePromotedSilver
+            new List<MoveDirection>{
+                new MoveDirection{Direction=Up},
+                new MoveDirection{Direction=Left},
+                new MoveDirection{Direction=Right},
+                new MoveDirection{Direction=DownLeft},
+                new MoveDirection{Direction=Down},
+                new MoveDirection{Direction=DownRight},
+            },
+            // WhiteHorse
+            new List<MoveDirection>{
+                new MoveDirection{Direction=UpLeft,Long=true},
+                new MoveDirection{Direction=Up},
+                new MoveDirection{Direction=UpRight,Long=true},
+                new MoveDirection{Direction=Left},
+                new MoveDirection{Direction=Right},
+                new MoveDirection{Direction=DownLeft,Long=true},
+                new MoveDirection{Direction=Down},
+                new MoveDirection{Direction=DownRight,Long=true},
+            },
+            // WhiteDragon
+            new List<MoveDirection>{
+                new MoveDirection{Direction=UpLeft},
+                new MoveDirection{Direction=Up,Long=true},
+                new MoveDirection{Direction=UpRight},
+                new MoveDirection{Direction=Left,Long=true},
+                new MoveDirection{Direction=Right,Long=true},
+                new MoveDirection{Direction=DownLeft},
+                new MoveDirection{Direction=Down,Long=true},
+                new MoveDirection{Direction=DownRight},
+            },
+            // NumPieces
+            null,
+        };
 
         public static void Initialize()
         {
@@ -95,6 +350,16 @@ namespace RobotTanuki
         }
 
         /// <summary>
+        /// 人間にとって読みやすい文字列へ変換する。
+        /// </summary>
+        /// <param name="color"></param>
+        /// <returns></returns>
+        public static string ToHumanReadableString(this Color color)
+        {
+            return color == Color.Black ? "☗" : "☖";
+        }
+
+        /// <summary>
         /// 与えられた駒の種類を、成り駒の種類に変換する。
         /// </summary>
         /// <param name="piece"></param>
@@ -103,7 +368,94 @@ namespace RobotTanuki
         {
             Debug.Assert(NonPromotedToPromoted[(int)piece] != Piece.NoPiece);
             return NonPromotedToPromoted[(int)piece];
-        }        
+        }
+
+        /// <summary>
+        /// 成ることができる駒かどうかを判定する。
+        /// </summary>
+        /// <param name="piece"></param>
+        /// <returns></returns>
+        public static bool CanPromote(this Piece piece)
+        {
+            return NonPromotedToPromoted[(int)piece] != Piece.NoPiece;
+        }
+
+        /// <summary>
+        /// 与えられた駒の種類を、先手・後手に変換する。
+        /// </summary>
+        /// <param name="piece"></param>
+        /// <returns></returns>
+        public static Color ToColor(this Piece piece)
+        {
+            Debug.Assert(Piece.BlackPawn <= piece && piece < Piece.NumPieces);
+            return piece < Piece.WhitePawn ? Color.Black : Color.White;
+        }  
+
+        /// <summary>
+        /// 相手の持ち駒に加わったときの駒の種類を返す。
+        /// </summary>
+        /// <param name="piece"></param>
+        /// <returns></returns>
+        public static Piece AsOpponentHandPiece(this Piece piece)
+        {
+            Debug.Assert(PieceToOpponentHandPieces[(int)piece] != Piece.NoPiece);
+            return PieceToOpponentHandPieces[(int)piece];
+        }
+
+        /// <summary>
+        /// USIで使用される文字へ変換する。
+        /// </summary>
+        /// <param name="piece"></param>
+        /// <returns></returns>
+        public static char ToUsiChar(this Piece piece)
+        {
+            Debug.Assert(PieceToChar[(int)piece] != '\0');
+            return PieceToChar[(int)piece];
+        }
+
+        /// <summary>
+        /// 人間が読める文字列に変換する。USIとの互換性はない。
+        /// </summary>
+        /// <param name="piece"></param>
+        /// <returns></returns>
+        public static string ToHumanReadableString(this Piece piece)
+        {
+            Debug.Assert(PieceToString[(int)piece] != null);
+            return PieceToString[(int)piece];
+        }
+
+        private static Piece[] PieceToOpponentHandPieces = {
+            Piece.NoPiece,
+            Piece.WhitePawn,
+            Piece.WhiteLance,
+            Piece.WhiteKnight,
+            Piece.WhiteSilver,
+            Piece.WhiteGold,
+            Piece.WhiteBishop,
+            Piece.WhiteRook,
+            Piece.NoPiece,
+            Piece.WhitePawn,
+            Piece.WhiteLance,
+            Piece.WhiteKnight,
+            Piece.WhiteSilver,
+            Piece.WhiteBishop,
+            Piece.WhiteRook,
+            Piece.BlackPawn,
+            Piece.BlackLance,
+            Piece.BlackKnight,
+            Piece.BlackSilver,
+            Piece.BlackGold,
+            Piece.BlackBishop,
+            Piece.BlackRook,
+            Piece.NoPiece,
+            Piece.BlackPawn,
+            Piece.BlackLance,
+            Piece.BlackKnight,
+            Piece.BlackSilver,
+            Piece.BlackBishop,
+            Piece.BlackRook,
+            Piece.NumPieces,
+        };
 
         private static String[] PieceToString { get; } = {
             "　　",
@@ -137,12 +489,5 @@ namespace RobotTanuki
             " 龍↓",
             null,
         };
-
-        /// <summary>駒を人間が読める文字列に変換</summary>
-        public static string ToHumanReadableString(this Piece piece)
-        {
-            Debug.Assert(PieceToString[(int)piece] != null);
-            return PieceToString[(int)piece];
-        }
     }
 }
