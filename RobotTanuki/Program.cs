@@ -85,6 +85,15 @@ namespace RobotTanuki
                         Console.WriteLine(position);
                         break;
 
+                    case "generatemove":
+                        foreach (var move in MoveGenerator.Generate(position, Move.None))
+                        {
+                            Console.Write(move);
+                            Console.Write(" ");
+                        }
+                        Console.WriteLine();
+                        break;
+
                     default:
                         Console.WriteLine($"info string Unsupported command: {command}");
                         Console.Out.Flush();
