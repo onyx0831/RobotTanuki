@@ -25,12 +25,137 @@ namespace RobotTanuki
 
         /// <summary>手数</summary>
         public int Play { get; set; }
+
+        public Move LastMove { get; set; }
+
+        /// <summary>
+        /// 与えられた指し手に従い、局面を更新する。
+        /// </summary>
+        /// <param name="move"></param>
+        public void DoMove(Move move)
+        {
+            Debug.Assert(SideToMove == move.SideToMove);
+            Debug.Assert(move.Drop || Board[move.FileFrom, move.RankFrom] == move.PieceFrom);
+            Debug.Assert(move.Drop || Board[move.FileTo, move.RankTo] == move.PieceTo);
+
+            // 相手の駒を取る
+            if (move.PieceTo != Piece.NoPiece)
+            {
+                RemovePiece(move.FileTo, move.RankTo);
+
+                // Debug.Assert(move.PieceTo.ToColor() != SideToMove);
+                // Debug.Assert(move.PieceTo.AsOpponentHandPiece().ToColor() == SideToMove);
+                PutHandPiece(move.PieceTo.AsOpponentHandPiece());
+            }
+
+            if (move.Drop)
+            {
+                // 駒を打つ指し手
+                // Debug.Assert(move.PieceFrom.ToColor() == SideToMove);
+                RemoveHandPiece(move.PieceFrom);
+            }
+            else
+            {
+                // 駒を移動する指し手
+                RemovePiece(move.FileFrom, move.RankFrom);
+            }
+
+            PutPiece(move.FileTo, move.RankTo,
+                move.Promotion
+                ? move.PieceFrom.AsPromoted()
+                : move.PieceFrom);
+            // Debug.Assert(Board[move.FileTo, move.RankTo].ToColor() == SideToMove);
+
+            SideToMove = SideToMove.ToOpponent();
+
+            ++Play;
+
+            LastMove = move;
+        }
+
+        /// <summary>
+        /// 与えられた指し手に従い、局面を1手戻す。
+        /// </summary>
+        /// <param name="move"></param>
+        public void UndoMove(Move move)
+        {
+            Debug.Assert(SideToMove != move.SideToMove);
+
+            --Play;
+            SideToMove = SideToMove.ToOpponent();
+            RemovePiece(move.FileTo, move.RankTo);
+
+            if (move.Drop)
+            {
+                // 駒を打つ指し手
+                // Debug.Assert(move.PieceFrom.ToColor() == SideToMove);
+                PutHandPiece(move.PieceFrom);
+            }
+            else
+            {
+                // 駒を移動する指し手
+                // Debug.Assert(move.PieceFrom.ToColor() == SideToMove);
+                PutPiece(move.FileFrom, move.RankFrom, move.PieceFrom);
+            }
+
+            // 相手の駒を取る
+            if (move.PieceTo != Piece.NoPiece)
+            {
+                // Debug.Assert(move.PieceTo.ToColor() != SideToMove);
+                RemoveHandPiece(move.PieceTo.AsOpponentHandPiece());
+                PutPiece(move.FileTo, move.RankTo, move.PieceTo);
+            }
+        }
         
+        /// <summary>
+        /// 盤面に駒を配置する
+        /// </summary>
+        /// <param name="file"></param>
+        /// <param name="rank"></param>
+        /// <param name="piece"></param>
+        private void PutPiece(int file, int rank, Piece piece)
+        {
+            Debug.Assert(Board[file, rank] == Piece.NoPiece);
+            // Hash += Zobrist.Instance.PieceSquare[(int)piece, file, rank];
+            Board[file, rank] = piece;
+        }
+
+        /// <summary>
+        /// 盤面から駒を取り除く
+        /// </summary>
+        /// <param name="file"></param>
+        /// <param name="rank"></param>
+        private void RemovePiece(int file, int rank)
+        {
+            Debug.Assert(Board[file, rank] != Piece.NoPiece);
+            // Hash -= Zobrist.Instance.PieceSquare[(int)Board[file, rank], file, rank];
+            Board[file, rank] = Piece.NoPiece;
+        }
+
+        /// <summary>
+        /// 持ち駒に駒を加える
+        /// </summary>
+        /// <param name="piece"></param>
+        private void PutHandPiece(Piece piece)
+        {
+            // Hash += Zobrist.Instance.HandPiece[(int)piece];
+            ++HandPieces[(int)piece];
+        }
+
+        /// <summary>
+        /// 持ちがお魔から駒を取り除く
+        /// </summary>
+        /// <param name="piece"></param>
+        private void RemoveHandPiece(Piece piece)
+        {
+            Debug.Assert(HandPieces[(int)piece] > 0);
+            // Hash -= Zobrist.Instance.HandPiece[(int)piece];
+            --HandPieces[(int)piece];
+        }
 
         /// <summary>
         /// sfen文字列をセットする
         /// </summary>
-
         public void Set(string sfen)
         {
             SideToMove = Color.Black;

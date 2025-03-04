@@ -64,7 +64,13 @@ namespace RobotTanuki
                         {
                             throw new Exception($"不正なpositionコマンドです: {line}");
                         }
-                        // TODO: 指し手のパース（後日実装）
+                        // 指し手を適用
+                        foreach (var moveString in split.Skip(nextIndex))
+                        {
+                            if (moveString == "moves") continue;
+                            var move = Move.FromUsiString(position, moveString);
+                            position.DoMove(move);
+                        }
                         break;
 
                     case "stop":
