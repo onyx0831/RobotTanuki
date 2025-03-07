@@ -27,6 +27,7 @@ namespace RobotTanuki
                 var split = line.Split();
                 if (split.Length == 0) continue;
 
+                var random = new Random();
                 var command = split[0];
                 switch (command)
                 {
@@ -79,9 +80,19 @@ namespace RobotTanuki
                         break;
 
                     case "go":
-                        Console.WriteLine("bestmove resign");
-                        Console.Out.Flush();
-                        break;
+                        {
+                            var moves = MoveGenerator.Generate(position, null).ToList();
+                            if (moves.Count == 0)
+                            {
+                                Console.WriteLine("bestmove resign");
+                            }
+                            else
+                            {
+                                var move = moves[random.Next(moves.Count)];
+                                Console.WriteLine("bestmove " + move.ToUsiString());
+                            }
+                            break;
+                        }
 
                     case "quit":
                         return;
