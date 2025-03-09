@@ -17,21 +17,27 @@ namespace RobotTanuki
 
         void Run()
         {
+            Debugger.Launch();
 
             Initialize();
+            var options = new Dictionary<string, string>();
             var position = new Position();
             
             string line;
             while ((line = Console.ReadLine()) != null)
             {
                 var split = line.Split();
-                if (split.Length == 0) continue;
-
+                if (split.Length == 0)
+                {
+                    continue;
+                }
+                
                 var random = new Random();
                 var command = split[0];
                 switch (command)
                 {
                     case "usi":
+                        Debug.Assert(split[0] == "usi");
                         Console.WriteLine("id name Robot Tanuki");
                         Console.WriteLine("id author onyx31");
                         Console.WriteLine($"option name {USI_Ponder} type check default true");
@@ -46,9 +52,20 @@ namespace RobotTanuki
                         break;
 
                     case "usinewgame":
+                        break;
+
                     case "setoption":
+                        Debug.Assert(split.Length == 5);
+                        Debug.Assert(split[1] == "name");
+                        Debug.Assert(split[3] == "value");
+                        var id = split[2];
+                        var x = split[4];
+                        options[id] = x;
+                        break;
+
                     case "position":
                         Debug.Assert(split.Length >= 2);
+                        Debug.Assert(split[1] == "sfen" || split[1] == "startpos");
                         int nextIndex;
                         if (split[1] == "sfen")
                         {
