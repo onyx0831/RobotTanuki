@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Threading.Tasks;
 
 namespace RobotTanuki
 {
@@ -126,14 +127,14 @@ namespace RobotTanuki
                         Console.WriteLine(position);
                         break;
 
-                    case "generatemove":
-                        foreach (var move in MoveGenerator.Generate(position, Move.None))
-                        {
-                            Console.Write(move);
-                            Console.Write(" ");
-                        }
-                        Console.WriteLine();
-                        break;
+                    // case "generatemove":
+                        // foreach (var move in MoveGenerator.Generate(position))
+                        // {
+                            // Console.Write(move);
+                            // Console.Write(" ");
+                        // }
+                        // Console.WriteLine();
+                        // break;
 
                     case "eval":
                         Console.WriteLine(Evaluator.Evaluate(position));
