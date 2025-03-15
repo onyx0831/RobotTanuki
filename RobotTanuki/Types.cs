@@ -347,6 +347,22 @@ namespace RobotTanuki
             CharToPiece['P'] = Piece.BlackPawn;
             CharToPiece['p'] = Piece.WhitePawn;
 
+            PieceToChar[(int)Piece.BlackKing] = 'K';
+            PieceToChar[(int)Piece.WhiteKing] = 'k';
+            PieceToChar[(int)Piece.BlackRook] = 'R';
+            PieceToChar[(int)Piece.WhiteRook] = 'r';
+            PieceToChar[(int)Piece.BlackBishop] = 'B';
+            PieceToChar[(int)Piece.WhiteBishop] = 'b';
+            PieceToChar[(int)Piece.BlackGold] = 'G';
+            PieceToChar[(int)Piece.WhiteGold] = 'g';
+            PieceToChar[(int)Piece.BlackSilver] = 'S';
+            PieceToChar[(int)Piece.WhiteSilver] = 's';
+            PieceToChar[(int)Piece.BlackKnight] = 'N';
+            PieceToChar[(int)Piece.WhiteKnight] = 'n';
+            PieceToChar[(int)Piece.BlackLance] = 'L';
+            PieceToChar[(int)Piece.WhiteLance] = 'l';
+            PieceToChar[(int)Piece.BlackPawn] = 'P';
+            PieceToChar[(int)Piece.WhitePawn] = 'p';
         }
 
         /// <summary>

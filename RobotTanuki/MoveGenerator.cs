@@ -19,7 +19,7 @@ namespace RobotTanuki
         /// <param name="position"></param>
         /// <param name="position">置換表に登録されている指し手</param>
         /// <returns></returns>
-        public static IEnumerable<Move> Generate(Position position, Move transpositionTableMove)
+        public static IEnumerable<Move> Generate(Position position)
         {
             var sideToMove = position.SideToMove;
             var board = position.Board;
