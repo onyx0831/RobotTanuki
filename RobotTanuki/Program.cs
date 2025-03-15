@@ -97,19 +97,26 @@ namespace RobotTanuki
                         break;
 
                     case "go":
+                        int depth = 3;
+                        var beginTime = DateTime.Now;
+                        int nodes = 0;
+                        var bestMove = Searcher.Search(position, depth, ref nodes);
+                        var endTime = DateTime.Now;
+                        int time = (int)(endTime - beginTime).TotalMilliseconds;
+                        string bestMoveString = bestMove.Move.ToUsiString();
+                        int scoreCP = bestMove.Value;
+                        int nps = (int)(nodes / (endTime - beginTime).TotalSeconds);
+                        Console.WriteLine($"info depth {depth} seldepth {depth} time {time} nodes {nodes} score cp {bestMove.Value} nps {nps} pv {bestMoveString}");
+                        
+                        if (bestMove.Value < -30000)
                         {
-                            var moves = MoveGenerator.Generate(position, null).ToList();
-                            if (moves.Count == 0)
-                            {
-                                Console.WriteLine("bestmove resign");
-                            }
-                            else
-                            {
-                                var move = moves[random.Next(moves.Count)];
-                                Console.WriteLine("bestmove " + move.ToUsiString());
-                            }
-                            break;
+                            Console.WriteLine("bestmove resign");
                         }
+                        else
+                        {
+                            Console.WriteLine("bestmove " + bestMoveString);
+                        }
+                        break;
 
                     case "quit":
                         return;
