@@ -128,6 +128,10 @@ namespace RobotTanuki
                         Console.WriteLine();
                         break;
 
+                    case "eval":
+                        Console.WriteLine(Evaluator.Evaluate(position));
+                        break;
+
                     default:
                         Console.WriteLine($"info string Unsupported command: {command}");
                         Console.Out.Flush();
