@@ -127,14 +127,14 @@ namespace RobotTanuki
                         Console.WriteLine(position);
                         break;
 
-                    // case "generatemove":
-                        // foreach (var move in MoveGenerator.Generate(position))
-                        // {
-                            // Console.Write(move);
-                            // Console.Write(" ");
-                        // }
-                        // Console.WriteLine();
-                        // break;
+                    case "generatemove":
+                        foreach (var move in MoveGenerator.GenerateLegal(position))
+                        {
+                            Console.Write(move);
+                            Console.Write(" ");
+                        }
+                        Console.WriteLine();
+                        break;
 
                     case "eval":
                         Console.WriteLine(Evaluator.Evaluate(position));
