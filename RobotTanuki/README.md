@@ -1,7 +1,32 @@
 # RobotTanuki
+
 USI対応将棋思考エンジン
 
-# 新しいプロジェクトを始める場合
+## アーキテクチャ
+
+責務ごとにディレクトリを分けている。
+
+```
+RobotTanuki/
+  Program.cs    … エントリーポイント
+  Usi/          … USIプロトコルの入出力（標準入出力のパース/整形のみ）
+  Engine/       … 盤面・対局オプションの状態管理とオーケストレーション
+  Domain/       … 将棋のルールそのもの（盤面・駒・指し手生成）
+  Evaluation/   … 局面の評価
+  Search/       … 探索
+```
+
+依存の向き（循環なし）:
+
+```
+Program → Usi → Engine → Search → Evaluation → Domain
+```
+
+- `Domain`は他レイヤーに依存しない
+- `Usi`はUSIプロトコルの文字列（コマンドのパース/整形）を、`Engine`はUSIの文字列を一切知らないC#としてのAPIを、それぞれ担当する
+- namespaceは本家RocketTanukiに合わせて`RobotTanuki`のまま。ディレクトリのみの整理
+
+## 新しいプロジェクトを始める場合
 - .NETをインストール
 - .NETのプロジェクトを作る
   ```bash
@@ -9,7 +34,7 @@ USI対応将棋思考エンジン
   dotnet new console
   ```
 
-# buildする
+## buildする
 - プロジェクトファイル(.csproj)が出来たらビルドしてみる
   ```bash
   dotnet build
@@ -19,7 +44,7 @@ USI対応将棋思考エンジン
   dotnet publish -c Release -r win-x64 --self-contained true -o build
   ```
 
-# デバックする
+## デバッグする
 - build/exeファイルを開く
 
 初期局面のセット
