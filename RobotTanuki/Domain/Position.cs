@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using static RobotTanuki.Types;
 using static System.Math;
 
 namespace RobotTanuki
@@ -189,7 +188,7 @@ namespace RobotTanuki
                 }
                 else
                 {
-                    var piece = Types.CharToPiece[ch];
+                    var piece = PieceExtensions.CharToPiece[ch];
                     Debug.Assert(piece != Piece.NoPiece);
                     Board[file--, rank] = promotion ? piece.AsPromoted() : piece;
                     promotion = false;
@@ -214,7 +213,7 @@ namespace RobotTanuki
                     continue;
                 }
                 
-                var piece = Types.CharToPiece[ch];
+                var piece = PieceExtensions.CharToPiece[ch];
                 Debug.Assert(piece != Piece.NoPiece);
                 HandPieces[(int)piece] += Math.Max(1, count);
                 count = 0;

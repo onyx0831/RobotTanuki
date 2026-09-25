@@ -13,7 +13,7 @@ namespace RobotTanuki
         public static void Initialize()
         {
             // Position.Initialize();
-            Types.Initialize();
+            PieceExtensions.Initialize();
         }
 
         void Run()
