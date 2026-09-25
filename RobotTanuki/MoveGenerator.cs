@@ -198,6 +198,41 @@ namespace RobotTanuki
             }
         }
         /// <summary>
+        /// 合法手（指した結果、自玉が相手に取られる状態にならない手）のみを生成する。
+        /// </summary>
+        public static IEnumerable<Move> GenerateLegal(Position position)
+        {
+            var sideToMove = position.SideToMove;
+            foreach (var move in Generate(position))
+            {
+                position.DoMove(move);
+                bool leavesOwnKingCapturable = IsKingCapturable(position, sideToMove);
+                position.UndoMove(move);
+
+                if (!leavesOwnKingCapturable)
+                {
+                    yield return move;
+                }
+            }
+        }
+
+        /// <summary>
+        /// 指定した手番の玉が、現在の手番側に取られる状態（王手されている状態）かどうかを判定する
+        /// </summary>
+        private static bool IsKingCapturable(Position position, Color color)
+        {
+            var king = color == Color.Black ? Piece.BlackKing : Piece.WhiteKing;
+            foreach (var move in Generate(position))
+            {
+                if (move.PieceTo == king)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
         /// 歩と香が敵陣1段目、桂が敵陣1段目と2段目に成らずに移動できないことを判定する
         /// </summary>
         /// <param name="pieceFrom"></param>

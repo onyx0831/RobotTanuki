@@ -21,18 +21,8 @@ namespace RobotTanuki
 
             int bestValue = int.MinValue;
             Move bestMove = Move.Resign;
-            foreach (var move in MoveGenerator.Generate(position))
+            foreach (var move in MoveGenerator.GenerateLegal(position))
             {
-                // HACK: 相手の玉を取る手なら、early returnする。
-                if (move.PieceTo == Piece.BlackKing || move.PieceTo == Piece.WhiteKing)
-                {
-                    return new BestMove
-                    {
-                        Move = move,
-                        Value = int.MaxValue,
-                    };
-                }
-
                 ++nodes;
                 position.DoMove(move);
                 BestMove childBestMove = Search(position, depth - 1, ref nodes);
