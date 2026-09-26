@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -65,6 +66,26 @@ namespace RobotTanuki
 
             currentGoOptions = options;
             searchSideToMove = position.SideToMove;
+
+            if (!options.Infinite && !options.Ponder)
+            {
+                var firstTwoLegalMoves = MoveGenerator.GenerateLegal(position).Take(2).ToList();
+                if (firstTwoLegalMoves.Count == 1)
+                {
+                    // 合法手が1つしかない場合は、探索しても選択肢が変わらないので即座に指す。
+                    searchCancellation = null;
+                    searchTask = Task.CompletedTask;
+                    onSearchCompleted(new SearchProgress
+                    {
+                        Result = new BestMove { Move = firstTwoLegalMoves[0], Value = 0 },
+                        Depth = 0,
+                        Nodes = 0,
+                        TimeMs = 0,
+                    });
+                    return;
+                }
+            }
+
             var cts = new CancellationTokenSource();
             searchCancellation = cts;
 
