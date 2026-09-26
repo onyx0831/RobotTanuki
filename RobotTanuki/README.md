@@ -60,4 +60,4 @@ Program → Usi → Engine → Search → Evaluation → Domain
   （最多合法手局面：「position sfen 8R/kSS1S1K2/4B4/9/9/9/9/9/3L1L1L1 b RBGSNLP3g3n17p 1」）
 
 ## 動作確認する
-- 探索・指し手生成まわりを変更したら、`./verify.sh` を実行して既知の局面での挙動が壊れていないことを確認する（ビルド・整形チェック・合法手数・bestmoveのチェックをまとめて行う）
+- 探索・指し手生成まわりを変更したら、`./scripts/verify.sh` を実行して既知の局面での挙動が壊れていないことを確認する（ビルド・整形チェック・合法手数・bestmoveのチェックをまとめて行う）
