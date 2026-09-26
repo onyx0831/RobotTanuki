@@ -7,6 +7,7 @@ namespace RobotTanuki
             // Debugger.Launch();
 
             PieceExtensions.Initialize();
+            Zobrist.Initialize();
             new Usi(new Engine()).Run();
         }
     }

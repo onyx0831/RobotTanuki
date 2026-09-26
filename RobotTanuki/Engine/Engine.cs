@@ -62,5 +62,10 @@ namespace RobotTanuki
         {
             return Evaluator.Evaluate(position);
         }
+
+        public ulong DebugHash()
+        {
+            return position.Hash;
+        }
     }
 }

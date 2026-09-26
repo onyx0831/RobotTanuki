@@ -116,6 +116,10 @@ namespace RobotTanuki
                         Console.WriteLine(engine.DebugPositionString());
                         break;
 
+                    case "hash":
+                        Console.WriteLine(engine.DebugHash());
+                        break;
+
                     case "generatemove":
                         foreach (var move in engine.DebugGenerateLegalMoves())
                         {

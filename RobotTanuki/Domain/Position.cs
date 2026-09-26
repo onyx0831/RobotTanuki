@@ -27,6 +27,9 @@ namespace RobotTanuki
 
         public Move LastMove { get; set; }
 
+        /// <summary>局面を一意に識別するZobristハッシュ</summary>
+        public ulong Hash { get; private set; }
+
         /// <summary>
         /// 与えられた指し手に従い、局面を更新する。
         /// </summary>
@@ -66,6 +69,7 @@ namespace RobotTanuki
             // Debug.Assert(Board[move.FileTo, move.RankTo].ToColor() == SideToMove);
 
             SideToMove = SideToMove.ToOpponent();
+            Hash ^= Zobrist.BlackToMove;
 
             ++Play;
 
@@ -82,6 +86,7 @@ namespace RobotTanuki
 
             --Play;
             SideToMove = SideToMove.ToOpponent();
+            Hash ^= Zobrist.BlackToMove;
             RemovePiece(move.FileTo, move.RankTo);
 
             if (move.Drop)
@@ -115,7 +120,7 @@ namespace RobotTanuki
         private void PutPiece(int file, int rank, Piece piece)
         {
             Debug.Assert(Board[file, rank] == Piece.NoPiece);
-            // Hash += Zobrist.Instance.PieceSquare[(int)piece, file, rank];
+            Hash ^= Zobrist.PieceSquare[(int)piece, file, rank];
             Board[file, rank] = piece;
         }
 
@@ -127,7 +132,7 @@ namespace RobotTanuki
         private void RemovePiece(int file, int rank)
         {
             Debug.Assert(Board[file, rank] != Piece.NoPiece);
-            // Hash -= Zobrist.Instance.PieceSquare[(int)Board[file, rank], file, rank];
+            Hash ^= Zobrist.PieceSquare[(int)Board[file, rank], file, rank];
             Board[file, rank] = Piece.NoPiece;
         }
 
@@ -137,8 +142,9 @@ namespace RobotTanuki
         /// <param name="piece"></param>
         private void PutHandPiece(Piece piece)
         {
-            // Hash += Zobrist.Instance.HandPiece[(int)piece];
+            Hash ^= Zobrist.HandPiece[(int)piece, HandPieces[(int)piece]];
             ++HandPieces[(int)piece];
+            Hash ^= Zobrist.HandPiece[(int)piece, HandPieces[(int)piece]];
         }
 
         /// <summary>
@@ -148,8 +154,9 @@ namespace RobotTanuki
         private void RemoveHandPiece(Piece piece)
         {
             Debug.Assert(HandPieces[(int)piece] > 0);
-            // Hash -= Zobrist.Instance.HandPiece[(int)piece];
+            Hash ^= Zobrist.HandPiece[(int)piece, HandPieces[(int)piece]];
             --HandPieces[(int)piece];
+            Hash ^= Zobrist.HandPiece[(int)piece, HandPieces[(int)piece]];
         }
 
         /// <summary>
@@ -222,6 +229,33 @@ namespace RobotTanuki
             // 手数パース
             Play = int.Parse(sfen.Substring(index));
 
+            RecomputeHash();
+        }
+
+        /// <summary>
+        /// Board/HandPieces/SideToMoveからHashを1から計算し直す。
+        /// Set()はPutPiece等を経由せず盤面を直接書き換えるため、都度ここで再計算する。
+        /// </summary>
+        private void RecomputeHash()
+        {
+            Hash = 0;
+            for (int file = 0; file < BoardSize; ++file)
+            {
+                for (int rank = 0; rank < BoardSize; ++rank)
+                {
+                    Hash ^= Zobrist.PieceSquare[(int)Board[file, rank], file, rank];
+                }
+            }
+
+            for (int piece = 0; piece < (int)Piece.NumPieces; ++piece)
+            {
+                Hash ^= Zobrist.HandPiece[piece, HandPieces[piece]];
+            }
+
+            if (SideToMove == Color.Black)
+            {
+                Hash ^= Zobrist.BlackToMove;
+            }
         }
 
         /// <summary>
