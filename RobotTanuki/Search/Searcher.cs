@@ -18,6 +18,9 @@ namespace RobotTanuki
         // 減衰させても通常の評価値と混同しない余裕を持たせた閾値。
         private const int MateThreshold = Infinity - 1000;
 
+        // 静止探索の延長上限。取り合い・王手が続く限り延長するが、際限なく続かないための安全弁。
+        private const int QuiescenceMaxPly = 32;
+
         public static bool IsMateScore(int value)
         {
             return Math.Abs(value) > MateThreshold;
@@ -74,11 +77,7 @@ namespace RobotTanuki
         {
             if (depth == 0)
             {
-                return new BestMove
-                {
-                    Move = Move.None,
-                    Value = Evaluator.Evaluate(position),
-                };
+                return QuiescenceSearch(position, alpha, beta, QuiescenceMaxPly, ref nodes, cancellationToken);
             }
 
             ulong hash = position.Hash;
@@ -159,6 +158,103 @@ namespace RobotTanuki
             return new BestMove
             {
                 Move = bestMove,
+                Value = bestValue,
+                Next = bestChildMove,
+            };
+        }
+
+        /// <summary>
+        /// 静止探索。駒を取り合っている最中に探索を打ち切ると、駒を取られる直前で評価してしまう
+        /// 「地平線効果」が起きるため、取り合いが落ち着くまで（駒を取る手が尽きるまで）延長して読む。
+        /// 王手されている場合はstand pat（今の評価値をそのまま採用する）をせず、合法な応手を全て読む。
+        /// </summary>
+        private static BestMove QuiescenceSearch(Position position, int alpha, int beta, int ply, ref int nodes, CancellationToken cancellationToken)
+        {
+            bool inCheck = MoveGenerator.IsInCheck(position, position.SideToMove);
+            // 王手されている間はstand patを使わないので、Evaluateの呼び出し（利きの計算を含み重い）は
+            // 実際に値が必要になる場合（王手されていない場合、または下のply<=0の安全弁）まで遅らせる。
+            int standPat = inCheck ? 0 : Evaluator.Evaluate(position);
+
+            if (!inCheck)
+            {
+                if (standPat >= beta)
+                {
+                    return new BestMove { Move = Move.None, Value = standPat };
+                }
+                if (alpha < standPat)
+                {
+                    alpha = standPat;
+                }
+            }
+
+            if (ply <= 0)
+            {
+                // 延長の安全弁。ここまで来たら取り合い・王手の連続が続いていても評価値で打ち切る。
+                return new BestMove { Move = Move.None, Value = inCheck ? Evaluator.Evaluate(position) : standPat };
+            }
+
+            int bestValue = inCheck ? -Infinity : standPat;
+            Move bestMove = Move.Resign;
+            BestMove? bestChildMove = null;
+
+            // 王手されていなければ駒を取る手だけ、王手されていれば全ての合法手（回避手）を読む。
+            var moves = MoveGenerator.Generate(position)
+                .Where(move => inCheck || move.PieceTo != Piece.NoPiece)
+                .OrderByDescending(move => ScoreForOrdering(move, null));
+            foreach (var move in moves)
+            {
+                if (!MoveGenerator.IsLegal(position, move))
+                {
+                    continue;
+                }
+
+                cancellationToken.ThrowIfCancellationRequested();
+
+                ++nodes;
+                BestMove childBestMove;
+                position.DoMove(move);
+                try
+                {
+                    childBestMove = QuiescenceSearch(position, -beta, -alpha, ply - 1, ref nodes, cancellationToken);
+                }
+                finally
+                {
+                    position.UndoMove(move);
+                }
+
+                int value = -childBestMove.Value;
+                if (IsMateScore(value))
+                {
+                    value += value > 0 ? -1 : 1;
+                }
+
+                if (bestValue < value)
+                {
+                    bestValue = value;
+                    bestMove = move;
+                    bestChildMove = childBestMove;
+                }
+
+                if (alpha < bestValue)
+                {
+                    alpha = bestValue;
+                }
+
+                if (beta <= alpha)
+                {
+                    break;
+                }
+            }
+
+            if (inCheck && bestMove == Move.Resign)
+            {
+                // 王手を回避する合法手が1つもない＝詰み。
+                return new BestMove { Move = Move.Resign, Value = -Infinity };
+            }
+
+            return new BestMove
+            {
+                Move = bestMove == Move.Resign ? Move.None : bestMove,
                 Value = bestValue,
                 Next = bestChildMove,
             };
