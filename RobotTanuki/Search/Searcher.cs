@@ -197,9 +197,10 @@ namespace RobotTanuki
             Move bestMove = Move.Resign;
             BestMove? bestChildMove = null;
 
-            // 王手されていなければ駒を取る手だけ、王手されていれば全ての合法手（回避手）を読む。
+            // 王手されていなければ「駒を取る手」「成る手」だけ、王手されていれば全ての合法手（回避手）を読む。
+            // 成る手も対象にすることで、成り捨てや、成った直後に取り返される手を静止探索で検知できるようにする。
             var moves = MoveGenerator.Generate(position)
-                .Where(move => inCheck || move.PieceTo != Piece.NoPiece)
+                .Where(move => inCheck || move.PieceTo != Piece.NoPiece || move.Promotion)
                 .OrderByDescending(move => ScoreForOrdering(move, null));
             foreach (var move in moves)
             {
