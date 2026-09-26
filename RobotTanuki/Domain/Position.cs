@@ -25,8 +25,6 @@ namespace RobotTanuki
         /// <summary>手数</summary>
         public int Play { get; set; }
 
-        public Move LastMove { get; set; }
-
         /// <summary>局面を一意に識別するZobristハッシュ</summary>
         public ulong Hash { get; private set; }
 
@@ -72,8 +70,6 @@ namespace RobotTanuki
             Hash ^= Zobrist.BlackToMove;
 
             ++Play;
-
-            LastMove = move;
         }
 
         /// <summary>
@@ -243,6 +239,11 @@ namespace RobotTanuki
             {
                 for (int rank = 0; rank < BoardSize; ++rank)
                 {
+                    // PutPiece/RemovePieceは駒があるマスしかXORしないため、ここでもNoPieceのマスは対象外にする。
+                    if (Board[file, rank] == Piece.NoPiece)
+                    {
+                        continue;
+                    }
                     Hash ^= Zobrist.PieceSquare[(int)Board[file, rank], file, rank];
                 }
             }
