@@ -25,6 +25,7 @@ namespace RobotTanuki
     {
         private readonly TranspositionTableEntry[] entries;
 
+        /// <param name="entryCount">2のべき乗であること（ビットマスクでインデックスを求めるため）</param>
         public TranspositionTable(int entryCount)
         {
             entries = new TranspositionTableEntry[entryCount];
@@ -50,7 +51,7 @@ namespace RobotTanuki
 
         private int Index(ulong hash)
         {
-            return (int)(hash % (ulong)entries.Length);
+            return (int)(hash & (ulong)(entries.Length - 1));
         }
     }
 }
