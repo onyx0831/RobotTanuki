@@ -19,9 +19,9 @@ namespace RobotTanuki
         public Move Move { get; set; }
 
         /// <summary>
-        /// 次の手
+        /// 次の手（読み筋の末端ではnull）
         /// </summary>
-        public BestMove Next { get; set; }
+        public BestMove? Next { get; set; }
 
         /// <summary>
         /// 探索深さ

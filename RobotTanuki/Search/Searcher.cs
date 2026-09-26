@@ -35,6 +35,7 @@ namespace RobotTanuki
 
             int bestValue = -Infinity;
             Move bestMove = Move.Resign;
+            BestMove? bestChildMove = null;
             // 擬似合法手（生成コストが軽い）の段階で並べ替え、合法性チェックは1手ずつ遅延評価する。
             // 先にGenerateLegal()で合法手化してから並べ替えると、枝刈りで不要になったはずの
             // 合法性チェック（DoMove/UndoMoveを伴う重い処理）まで全手分先に済ませてしまい、かえって遅くなる。
@@ -56,6 +57,7 @@ namespace RobotTanuki
                 {
                     bestValue = value;
                     bestMove = move;
+                    bestChildMove = childBestMove;
                 }
 
                 if (alpha < bestValue)
@@ -74,6 +76,7 @@ namespace RobotTanuki
             {
                 Move = bestMove,
                 Value = bestValue,
+                Next = bestChildMove,
             };
         }
 

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 
@@ -91,7 +92,8 @@ namespace RobotTanuki
                         var (bestMove, depth, nodes, timeMs) = engine.Go();
                         string bestMoveString = bestMove.Move.ToUsiString();
                         int nps = timeMs > 0 ? (int)(nodes / (timeMs / 1000.0)) : 0;
-                        Console.WriteLine($"info depth {depth} seldepth {depth} time {timeMs} nodes {nodes} score cp {bestMove.Value} nps {nps} pv {bestMoveString}");
+                        string pv = BuildPvString(bestMove);
+                        Console.WriteLine($"info depth {depth} seldepth {depth} time {timeMs} nodes {nodes} score cp {bestMove.Value} nps {nps} pv {pv}");
 
                         if (bestMove.Value < -30000)
                         {
@@ -130,6 +132,21 @@ namespace RobotTanuki
                         break;
                 }
             }
+        }
+
+        /// <summary>
+        /// BestMove.Nextを辿って読み筋（Principal Variation）の文字列を組み立てる。
+        /// </summary>
+        private static string BuildPvString(BestMove bestMove)
+        {
+            var moveStrings = new List<string>();
+            BestMove? current = bestMove;
+            while (current != null && current.Move != Move.Resign && current.Move != Move.None)
+            {
+                moveStrings.Add(current.Move.ToUsiString());
+                current = current.Next;
+            }
+            return string.Join(" ", moveStrings);
         }
     }
 }
