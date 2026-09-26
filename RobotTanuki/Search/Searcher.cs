@@ -171,7 +171,9 @@ namespace RobotTanuki
         private static BestMove QuiescenceSearch(Position position, int alpha, int beta, int ply, ref int nodes, CancellationToken cancellationToken)
         {
             bool inCheck = MoveGenerator.IsInCheck(position, position.SideToMove);
-            int standPat = Evaluator.Evaluate(position);
+            // 王手されている間はstand patを使わないので、Evaluateの呼び出し（利きの計算を含み重い）は
+            // 実際に値が必要になる場合（王手されていない場合、または下のply<=0の安全弁）まで遅らせる。
+            int standPat = inCheck ? 0 : Evaluator.Evaluate(position);
 
             if (!inCheck)
             {
@@ -188,7 +190,7 @@ namespace RobotTanuki
             if (ply <= 0)
             {
                 // 延長の安全弁。ここまで来たら取り合い・王手の連続が続いていても評価値で打ち切る。
-                return new BestMove { Move = Move.None, Value = standPat };
+                return new BestMove { Move = Move.None, Value = inCheck ? Evaluator.Evaluate(position) : standPat };
             }
 
             int bestValue = inCheck ? -Infinity : standPat;
