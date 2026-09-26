@@ -28,6 +28,7 @@ namespace RobotTanuki
 
             value += EvaluateKingSafety(position, blackControl, whiteControl);
             value += EvaluatePieceSafety(position, blackControl, whiteControl);
+            value += EvaluateKingPosition(position);
 
             // 後手の場合は評価値を反転
             if (position.SideToMove == Color.White)
@@ -128,6 +129,32 @@ namespace RobotTanuki
                         value -= sign * pieceValue * AttackedPenaltyPercent / 100;
                     }
                 }
+            }
+
+            return value;
+        }
+
+        // 段によるボーナス（rank0=盤の最上段〜rank8=先手の最下段）。先手は自陣（rank8側）にいるほど高い。
+        // 段だけで評価すると「単に後方に下がるだけの不自然な手」を誘発するため、筋のボーナスと組み合わせて使う。
+        private static readonly int[] KingRankBonus = { 0, 0, 0, 0, 0, 0, 10, 20, 25 };
+
+        // 筋によるボーナス。中央より端に寄っているほど高い（囲いが端に寄る傾向を軽く後押しする）。
+        private static readonly int[] KingFileBonus = { 15, 10, 5, 0, 0, 0, 5, 10, 15 };
+
+        /// <summary>
+        /// 玉の位置による小さいボーナスを先手から見た値で返す。
+        /// </summary>
+        private static int EvaluateKingPosition(Position position)
+        {
+            int value = 0;
+
+            if (position.TryFindKingSquare(Color.Black, out var blackKing))
+            {
+                value += KingFileBonus[blackKing.File] + KingRankBonus[blackKing.Rank];
+            }
+            if (position.TryFindKingSquare(Color.White, out var whiteKing))
+            {
+                value -= KingFileBonus[whiteKing.File] + KingRankBonus[Position.BoardSize - 1 - whiteKing.Rank];
             }
 
             return value;
