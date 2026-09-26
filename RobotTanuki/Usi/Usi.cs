@@ -93,7 +93,10 @@ namespace RobotTanuki
                         string bestMoveString = bestMove.Move.ToUsiString();
                         int nps = timeMs > 0 ? (int)(nodes / (timeMs / 1000.0)) : 0;
                         string pv = BuildPvString(bestMove);
-                        Console.WriteLine($"info depth {depth} seldepth {depth} time {timeMs} nodes {nodes} score cp {bestMove.Value} nps {nps} pv {pv}");
+                        string score = Searcher.IsMateScore(bestMove.Value)
+                            ? $"mate {Searcher.PliesUntilMate(bestMove.Value)}"
+                            : $"cp {bestMove.Value}";
+                        Console.WriteLine($"info depth {depth} seldepth {depth} time {timeMs} nodes {nodes} score {score} nps {nps} pv {pv}");
 
                         if (bestMove.Value < -30000)
                         {

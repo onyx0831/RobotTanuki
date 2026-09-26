@@ -9,10 +9,22 @@ namespace RobotTanuki
 {
     public class Searcher
     {
-        /// <summary>
-        /// 評価値の「無限大」を表す値。intの範囲内で安全に符号反転できる大きさにしている。
-        /// </summary>
+        // intの範囲で安全に符号反転できる大きさ。詰みが今起きた瞬間の値としても使う。
         private const int Infinity = 1_000_000_000;
+
+        // 減衰させても通常の評価値と混同しない余裕を持たせた閾値。
+        private const int MateThreshold = Infinity - 1000;
+
+        public static bool IsMateScore(int value)
+        {
+            return Math.Abs(value) > MateThreshold;
+        }
+
+        /// <summary>正なら詰ますまでの手数、負なら詰まされるまでの手数。</summary>
+        public static int PliesUntilMate(int value)
+        {
+            return value > 0 ? Infinity - value : -(Infinity + value);
+        }
 
         public static BestMove Search(Position position, int depth, ref int nodes)
         {
@@ -36,9 +48,8 @@ namespace RobotTanuki
             int bestValue = -Infinity;
             Move bestMove = Move.Resign;
             BestMove? bestChildMove = null;
-            // 擬似合法手（生成コストが軽い）の段階で並べ替え、合法性チェックは1手ずつ遅延評価する。
-            // 先にGenerateLegal()で合法手化してから並べ替えると、枝刈りで不要になったはずの
-            // 合法性チェック（DoMove/UndoMoveを伴う重い処理）まで全手分先に済ませてしまい、かえって遅くなる。
+            // GenerateLegal()後に並べ替えると遅延評価が効かず、枝刈りで省けるはずの
+            // 合法性チェックまで全手分先に実行してしまうため、擬似合法手の段階で並べ替える。
             var moves = MoveGenerator.Generate(position).OrderByDescending(ScoreForOrdering);
             foreach (var move in moves)
             {
@@ -53,6 +64,12 @@ namespace RobotTanuki
                 position.UndoMove(move);
 
                 int value = -childBestMove.Value;
+                if (IsMateScore(value))
+                {
+                    // 速い詰みほど絶対値が大きくなるよう、1手伝播するごとに1減らす。
+                    value += value > 0 ? -1 : 1;
+                }
+
                 if (bestValue < value)
                 {
                     bestValue = value;
@@ -67,7 +84,6 @@ namespace RobotTanuki
 
                 if (beta <= alpha)
                 {
-                    // betaカット: これ以上調べても親のalphaを超えられないため打ち切る
                     break;
                 }
             }
