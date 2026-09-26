@@ -18,7 +18,7 @@ namespace RobotTanuki
 
         public static void Initialize()
         {
-            var random = new Random(20250926);
+            var random = new Random(0);
 
             for (int piece = 0; piece < (int)Piece.NumPieces; ++piece)
             {
