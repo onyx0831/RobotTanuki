@@ -23,7 +23,12 @@ namespace RobotTanuki
                 value += PieceValues[i] * position.HandPieces[i];
             }
 
-            value += EvaluateKingSafety(position);
+            var blackControl = MoveGenerator.ComputeControlCounts(position, Color.Black);
+            var whiteControl = MoveGenerator.ComputeControlCounts(position, Color.White);
+
+            value += EvaluateKingSafety(position, blackControl, whiteControl);
+            value += EvaluatePieceSafety(position, blackControl, whiteControl);
+            value += EvaluateKingPosition(position);
 
             // 後手の場合は評価値を反転
             if (position.SideToMove == Color.White)
@@ -52,11 +57,8 @@ namespace RobotTanuki
         /// 玉の周囲の利きを評価する。先手から見た値を返す。
         /// 玉に近いマスほど価値が高く、距離に反比例して減衰する。
         /// </summary>
-        private static int EvaluateKingSafety(Position position)
+        private static int EvaluateKingSafety(Position position, int[,] blackControl, int[,] whiteControl)
         {
-            var blackControl = MoveGenerator.ComputeControlCounts(position, Color.Black);
-            var whiteControl = MoveGenerator.ComputeControlCounts(position, Color.White);
-
             return EvaluateKingSafetyFor(position, Color.Black, blackControl, whiteControl)
                 - EvaluateKingSafetyFor(position, Color.White, whiteControl, blackControl);
         }
@@ -82,6 +84,77 @@ namespace RobotTanuki
                     value += ownControl[file, rank] * DefenseBaseValue / (distance + 1);
                     value -= enemyControl[file, rank] * ThreatBaseValue / (distance + 1);
                 }
+            }
+
+            return value;
+        }
+
+        // 味方に守られている駒へのボーナス（駒価値に対する割合、%）
+        private const int DefendedBonusPercent = 3;
+
+        // 敵に狙われている駒へのペナルティ（駒価値に対する割合、%）。守りより狙われている方を重く見る。
+        private const int AttackedPenaltyPercent = 8;
+
+        /// <summary>
+        /// 盤上の各駒について、味方の利きで守られているか・敵の利きに狙われているかを判定し、
+        /// 駒価値に対する小さい割合で加減点する。先手から見た値を返す。
+        /// </summary>
+        private static int EvaluatePieceSafety(Position position, int[,] blackControl, int[,] whiteControl)
+        {
+            var board = position.Board;
+            int value = 0;
+
+            for (int file = 0; file < Position.BoardSize; ++file)
+            {
+                for (int rank = 0; rank < Position.BoardSize; ++rank)
+                {
+                    var piece = board[file, rank];
+                    if (piece == Piece.NoPiece)
+                    {
+                        continue;
+                    }
+
+                    int pieceValue = GetPieceValue(piece);
+                    bool isBlack = piece.ToColor() == Color.Black;
+                    var ownControl = isBlack ? blackControl : whiteControl;
+                    var enemyControl = isBlack ? whiteControl : blackControl;
+                    int sign = isBlack ? 1 : -1;
+
+                    if (ownControl[file, rank] > 0)
+                    {
+                        value += sign * pieceValue * DefendedBonusPercent / 100;
+                    }
+                    if (enemyControl[file, rank] > 0)
+                    {
+                        value -= sign * pieceValue * AttackedPenaltyPercent / 100;
+                    }
+                }
+            }
+
+            return value;
+        }
+
+        // 段によるボーナス（rank0=盤の最上段〜rank8=先手の最下段）。先手は自陣（rank8側）にいるほど高い。
+        // 段だけで評価すると「単に後方に下がるだけの不自然な手」を誘発するため、筋のボーナスと組み合わせて使う。
+        private static readonly int[] KingRankBonus = { 0, 0, 0, 0, 0, 0, 10, 20, 25 };
+
+        // 筋によるボーナス。中央より端に寄っているほど高い（囲いが端に寄る傾向を軽く後押しする）。
+        private static readonly int[] KingFileBonus = { 15, 10, 5, 0, 0, 0, 5, 10, 15 };
+
+        /// <summary>
+        /// 玉の位置による小さいボーナスを先手から見た値で返す。
+        /// </summary>
+        private static int EvaluateKingPosition(Position position)
+        {
+            int value = 0;
+
+            if (position.TryFindKingSquare(Color.Black, out var blackKing))
+            {
+                value += KingFileBonus[blackKing.File] + KingRankBonus[blackKing.Rank];
+            }
+            if (position.TryFindKingSquare(Color.White, out var whiteKing))
+            {
+                value -= KingFileBonus[whiteKing.File] + KingRankBonus[Position.BoardSize - 1 - whiteKing.Rank];
             }
 
             return value;
