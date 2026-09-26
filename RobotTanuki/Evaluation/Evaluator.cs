@@ -23,7 +23,11 @@ namespace RobotTanuki
                 value += PieceValues[i] * position.HandPieces[i];
             }
 
-            value += EvaluateKingSafety(position);
+            var blackControl = MoveGenerator.ComputeControlCounts(position, Color.Black);
+            var whiteControl = MoveGenerator.ComputeControlCounts(position, Color.White);
+
+            value += EvaluateKingSafety(position, blackControl, whiteControl);
+            value += EvaluatePieceSafety(position, blackControl, whiteControl);
 
             // 後手の場合は評価値を反転
             if (position.SideToMove == Color.White)
@@ -52,11 +56,8 @@ namespace RobotTanuki
         /// 玉の周囲の利きを評価する。先手から見た値を返す。
         /// 玉に近いマスほど価値が高く、距離に反比例して減衰する。
         /// </summary>
-        private static int EvaluateKingSafety(Position position)
+        private static int EvaluateKingSafety(Position position, int[,] blackControl, int[,] whiteControl)
         {
-            var blackControl = MoveGenerator.ComputeControlCounts(position, Color.Black);
-            var whiteControl = MoveGenerator.ComputeControlCounts(position, Color.White);
-
             return EvaluateKingSafetyFor(position, Color.Black, blackControl, whiteControl)
                 - EvaluateKingSafetyFor(position, Color.White, whiteControl, blackControl);
         }
@@ -81,6 +82,51 @@ namespace RobotTanuki
                     int distance = Math.Max(Math.Abs(file - kingFile), Math.Abs(rank - kingRank));
                     value += ownControl[file, rank] * DefenseBaseValue / (distance + 1);
                     value -= enemyControl[file, rank] * ThreatBaseValue / (distance + 1);
+                }
+            }
+
+            return value;
+        }
+
+        // 味方に守られている駒へのボーナス（駒価値に対する割合、%）
+        private const int DefendedBonusPercent = 3;
+
+        // 敵に狙われている駒へのペナルティ（駒価値に対する割合、%）。守りより狙われている方を重く見る。
+        private const int AttackedPenaltyPercent = 8;
+
+        /// <summary>
+        /// 盤上の各駒について、味方の利きで守られているか・敵の利きに狙われているかを判定し、
+        /// 駒価値に対する小さい割合で加減点する。先手から見た値を返す。
+        /// </summary>
+        private static int EvaluatePieceSafety(Position position, int[,] blackControl, int[,] whiteControl)
+        {
+            var board = position.Board;
+            int value = 0;
+
+            for (int file = 0; file < Position.BoardSize; ++file)
+            {
+                for (int rank = 0; rank < Position.BoardSize; ++rank)
+                {
+                    var piece = board[file, rank];
+                    if (piece == Piece.NoPiece)
+                    {
+                        continue;
+                    }
+
+                    int pieceValue = GetPieceValue(piece);
+                    bool isBlack = piece.ToColor() == Color.Black;
+                    var ownControl = isBlack ? blackControl : whiteControl;
+                    var enemyControl = isBlack ? whiteControl : blackControl;
+                    int sign = isBlack ? 1 : -1;
+
+                    if (ownControl[file, rank] > 0)
+                    {
+                        value += sign * pieceValue * DefendedBonusPercent / 100;
+                    }
+                    if (enemyControl[file, rank] > 0)
+                    {
+                        value -= sign * pieceValue * AttackedPenaltyPercent / 100;
+                    }
                 }
             }
 
