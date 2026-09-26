@@ -32,6 +32,14 @@ namespace RobotTanuki
             return value;
         }
 
+        /// <summary>
+        /// 駒の価値を手番に依存しない絶対値で返す。指し手オーダリング（MVV-LVA）で使用する。
+        /// </summary>
+        public static int GetPieceValue(Piece piece)
+        {
+            return Math.Abs(PieceValues[(int)piece]);
+        }
+
         private static readonly int[] PieceValues = {
             0,    // NoPiece
             90,   // 歩
