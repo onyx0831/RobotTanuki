@@ -11,8 +11,32 @@ namespace RobotTanuki
     {
         /// <summary>
         /// 評価値の「無限大」を表す値。intの範囲内で安全に符号反転できる大きさにしている。
+        /// 詰みの基準値（詰みが今起きた瞬間の値）としても使う。
         /// </summary>
         private const int Infinity = 1_000_000_000;
+
+        /// <summary>
+        /// 評価値の絶対値がこれを超えていたら「詰み絡みの値」とみなす閾値。
+        /// 詰みまでの手数ぶんInfinityから減衰させても、通常の評価値と混同しない余裕を持たせている。
+        /// </summary>
+        private const int MateThreshold = Infinity - 1000;
+
+        /// <summary>
+        /// 評価値が詰み絡みの値かどうかを判定する。
+        /// </summary>
+        public static bool IsMateScore(int value)
+        {
+            return Math.Abs(value) > MateThreshold;
+        }
+
+        /// <summary>
+        /// 詰み絡みの評価値から、詰みまでの手数を符号付きで返す。
+        /// 正なら自分が詰ますまでの手数、負なら自分が詰まされるまでの手数。
+        /// </summary>
+        public static int PliesUntilMate(int value)
+        {
+            return value > 0 ? Infinity - value : -(Infinity + value);
+        }
 
         public static BestMove Search(Position position, int depth, ref int nodes)
         {
@@ -53,6 +77,13 @@ namespace RobotTanuki
                 position.UndoMove(move);
 
                 int value = -childBestMove.Value;
+                if (IsMateScore(value))
+                {
+                    // 1手分伝播するごとに、詰みまでの距離を1手分伸ばす（＝評価値の絶対値を1減らす）。
+                    // こうすることで、同じ詰みでも近い（速い）詰みほど評価値の絶対値が大きくなり、優先される。
+                    value += value > 0 ? -1 : 1;
+                }
+
                 if (bestValue < value)
                 {
                     bestValue = value;
