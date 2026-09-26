@@ -21,6 +21,12 @@ namespace RobotTanuki
         // 静止探索の延長上限。取り合い・王手が続く限り延長するが、際限なく続かないための安全弁。
         private const int QuiescenceMaxPly = 32;
 
+        // Null Move Pruningを試す最小の残り深さ。浅すぎる場所で使うと縮小後の深さが0未満になり得るため。
+        private const int NullMoveMinDepth = 3;
+
+        // パスした後に探索する深さの減らし幅。
+        private const int NullMoveReduction = 2;
+
         public static bool IsMateScore(int value)
         {
             return Math.Abs(value) > MateThreshold;
@@ -94,6 +100,31 @@ namespace RobotTanuki
                     {
                         return new BestMove { Move = ttEntry.BestMove, Value = ttEntry.Value };
                     }
+                }
+            }
+
+            // Null Move Pruning: 一手パスしても（＝相手に手番をそのまま渡しても）なおbeta以上なら、
+            // 自分が指せば当然beta以上のはずなので、全ての指し手を調べずに打ち切る。
+            // 王手中にパスするのは不自然（王手放置になる）なので対象外。詰みが絡む窓では
+            // 誤ったmateスコアの打ち切りを避けるため対象外にする。
+            if (depth >= NullMoveMinDepth
+                && !IsMateScore(beta)
+                && !MoveGenerator.IsInCheck(position, position.SideToMove))
+            {
+                position.DoNullMove();
+                int nullMoveValue;
+                try
+                {
+                    nullMoveValue = -Search(position, depth - 1 - NullMoveReduction, -beta, -beta + 1, ref nodes, cancellationToken).Value;
+                }
+                finally
+                {
+                    position.UndoNullMove();
+                }
+
+                if (nullMoveValue >= beta)
+                {
+                    return new BestMove { Move = Move.None, Value = beta };
                 }
             }
 

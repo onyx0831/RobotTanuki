@@ -108,6 +108,24 @@ namespace RobotTanuki
         }
 
         /// <summary>
+        /// Null Move Pruning用に、駒を動かさず手番だけを相手に渡す。
+        /// </summary>
+        public void DoNullMove()
+        {
+            SideToMove = SideToMove.ToOpponent();
+            Hash ^= Zobrist.BlackToMove;
+        }
+
+        /// <summary>
+        /// DoNullMoveを1手戻す。
+        /// </summary>
+        public void UndoNullMove()
+        {
+            SideToMove = SideToMove.ToOpponent();
+            Hash ^= Zobrist.BlackToMove;
+        }
+
+        /// <summary>
         /// 盤面に駒を配置する
         /// </summary>
         /// <param name="file"></param>
