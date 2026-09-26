@@ -120,11 +120,7 @@ namespace RobotTanuki
             };
         }
 
-        /// <summary>
-        /// 指し手オーダリング用のスコア（MVV-LVA）。置換表に記録されている手を最優先にし、
-        /// それ以外は駒を取らない手を0（元の生成順のまま）、取る手は取られる駒の価値が高いほど、
-        /// 攻撃する駒の価値が安いほど優先する。
-        /// </summary>
+        /// <summary>指し手オーダリング用のスコア（置換表の手を最優先、次にMVV-LVA）。</summary>
         private static int ScoreForOrdering(Move move, Move? ttMove)
         {
             if (ttMove != null && move.Equals(ttMove))
