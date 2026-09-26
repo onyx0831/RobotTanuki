@@ -23,6 +23,17 @@ namespace RobotTanuki
 
         public void Run()
         {
+            void PrintSearchInfo(SearchProgress progress)
+            {
+                int nps = progress.TimeMs > 0 ? (int)(progress.Nodes / (progress.TimeMs / 1000.0)) : 0;
+                string pv = BuildPvString(progress.Result);
+                string score = Searcher.IsMateScore(progress.Result.Value)
+                    ? $"mate {Searcher.PliesUntilMate(progress.Result.Value)}"
+                    : $"cp {progress.Result.Value}";
+                Console.WriteLine($"info depth {progress.Depth} seldepth {progress.Depth} time {progress.TimeMs} nodes {progress.Nodes} score {score} nps {nps} pv {pv}");
+                Console.Out.Flush();
+            }
+
             string line;
             while ((line = Console.ReadLine()) != null)
             {
@@ -84,31 +95,71 @@ namespace RobotTanuki
                         break;
 
                     case "stop":
+                        engine.Stop();
+                        break;
+
                     case "ponderhit":
+                        engine.PonderHit();
+                        break;
+
                     case "gameover":
                         break;
 
                     case "go":
-                        var (bestMove, depth, nodes, timeMs) = engine.Go();
-                        string bestMoveString = bestMove.Move.ToUsiString();
-                        int nps = timeMs > 0 ? (int)(nodes / (timeMs / 1000.0)) : 0;
-                        string pv = BuildPvString(bestMove);
-                        string score = Searcher.IsMateScore(bestMove.Value)
-                            ? $"mate {Searcher.PliesUntilMate(bestMove.Value)}"
-                            : $"cp {bestMove.Value}";
-                        Console.WriteLine($"info depth {depth} seldepth {depth} time {timeMs} nodes {nodes} score {score} nps {nps} pv {pv}");
+                        var goOptions = new GoOptions();
+                        for (int index = 1; index < split.Length; ++index)
+                        {
+                            switch (split[index])
+                            {
+                                case "ponder":
+                                    goOptions.Ponder = true;
+                                    break;
+                                case "btime":
+                                    goOptions.BlackTimeMs = int.Parse(split[++index]);
+                                    break;
+                                case "wtime":
+                                    goOptions.WhiteTimeMs = int.Parse(split[++index]);
+                                    break;
+                                case "byoyomi":
+                                    goOptions.ByoyomiMs = int.Parse(split[++index]);
+                                    break;
+                                case "binc":
+                                    goOptions.BlackIncMs = int.Parse(split[++index]);
+                                    break;
+                                case "winc":
+                                    goOptions.WhiteIncMs = int.Parse(split[++index]);
+                                    break;
+                                case "infinite":
+                                    goOptions.Infinite = true;
+                                    break;
+                            }
+                        }
 
-                        if (bestMove.Value < -30000)
+                        engine.Go(goOptions, PrintSearchInfo, progress =>
                         {
-                            Console.WriteLine("bestmove resign");
-                        }
-                        else
-                        {
-                            Console.WriteLine("bestmove " + bestMoveString);
-                        }
+                            if (progress.Result.Value < -30000)
+                            {
+                                Console.WriteLine("bestmove resign");
+                            }
+                            else
+                            {
+                                var ponderMove = progress.Result.Next;
+                                if (ponderMove != null && ponderMove.Move != Move.Resign && ponderMove.Move != Move.None)
+                                {
+                                    Console.WriteLine($"bestmove {progress.Result.Move.ToUsiString()} ponder {ponderMove.Move.ToUsiString()}");
+                                }
+                                else
+                                {
+                                    Console.WriteLine("bestmove " + progress.Result.Move.ToUsiString());
+                                }
+                            }
+                            Console.Out.Flush();
+                        });
                         break;
 
                     case "quit":
+                        engine.Stop();
+                        engine.WaitForSearchToStop();
                         return;
 
                     // 以下デバッグ用コマンド

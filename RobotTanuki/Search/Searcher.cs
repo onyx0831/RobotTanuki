@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using static RobotTanuki.Evaluator;
 
 namespace RobotTanuki
@@ -28,15 +29,53 @@ namespace RobotTanuki
             return value > 0 ? Infinity - value : -(Infinity + value);
         }
 
-        public static BestMove Search(Position position, int depth, ref int nodes)
+        public static BestMove Search(Position position, int depth, ref int nodes, CancellationToken cancellationToken = default)
         {
-            return Search(position, depth, -Infinity, Infinity, ref nodes);
+            return Search(position, depth, -Infinity, Infinity, ref nodes, cancellationToken);
+        }
+
+        /// <summary>
+        /// 深さ1から順に探索し、完了した深さごとにonDepthCompletedを呼ぶ。
+        /// cancellationTokenが要求された時点では直前に完了した深さの結果を返す（深さ1は必ず完了させる）。
+        /// </summary>
+        public static BestMove SearchIterative(Position position, int maxDepth, CancellationToken cancellationToken, out int totalNodes, Action<BestMove, int, int>? onDepthCompleted = null)
+        {
+            int nodes = 0;
+            var bestMove = new BestMove { Move = Move.Resign, Value = -Infinity };
+
+            for (int depth = 1; depth <= maxDepth; ++depth)
+            {
+                // 深さ1は思考時間がどれだけ短くても必ず完了させ、指す手が必ずある状態を保証する。
+                var tokenForThisDepth = depth == 1 ? CancellationToken.None : cancellationToken;
+
+                BestMove result;
+                try
+                {
+                    result = Search(position, depth, -Infinity, Infinity, ref nodes, tokenForThisDepth);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+
+                bestMove = result;
+                bestMove.Depth = depth;
+                onDepthCompleted?.Invoke(bestMove, depth, nodes);
+
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    break;
+                }
+            }
+
+            totalNodes = nodes;
+            return bestMove;
         }
 
         /// <summary>
         /// ネガマックス形式のアルファベータ法で探索する。
         /// </summary>
-        private static BestMove Search(Position position, int depth, int alpha, int beta, ref int nodes)
+        private static BestMove Search(Position position, int depth, int alpha, int beta, ref int nodes, CancellationToken cancellationToken)
         {
             if (depth == 0)
             {
@@ -77,9 +116,11 @@ namespace RobotTanuki
                     continue;
                 }
 
+                cancellationToken.ThrowIfCancellationRequested();
+
                 ++nodes;
                 position.DoMove(move);
-                BestMove childBestMove = Search(position, depth - 1, -beta, -alpha, ref nodes);
+                BestMove childBestMove = Search(position, depth - 1, -beta, -alpha, ref nodes, cancellationToken);
                 position.UndoMove(move);
 
                 int value = -childBestMove.Value;
