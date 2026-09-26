@@ -240,6 +240,55 @@ namespace RobotTanuki
         }
 
         /// <summary>
+        /// 指定した色の駒による、各マスへの利きの数を集計する。
+        /// Generate()と違い、味方の駒が乗っているマスへの利き（＝守っている）も数える。
+        /// </summary>
+        public static int[,] ComputeControlCounts(Position position, Color color)
+        {
+            var counts = new int[Position.BoardSize, Position.BoardSize];
+            var board = position.Board;
+
+            for (int fileFrom = 0; fileFrom < Position.BoardSize; ++fileFrom)
+            {
+                for (int rankFrom = 0; rankFrom < Position.BoardSize; ++rankFrom)
+                {
+                    var pieceFrom = board[fileFrom, rankFrom];
+                    if (pieceFrom == Piece.NoPiece || pieceFrom.ToColor() != color)
+                    {
+                        continue;
+                    }
+
+                    foreach (var moveDirection in MoveDirections[(int)pieceFrom])
+                    {
+                        int maxDistance = moveDirection.Long ? 8 : 1;
+                        int fileTo = fileFrom;
+                        int rankTo = rankFrom;
+                        for (int distance = 0; distance < maxDistance; ++distance)
+                        {
+                            fileTo += moveDirection.Direction.DeltaFile;
+                            rankTo += moveDirection.Direction.DeltaRank;
+
+                            if (fileTo < 0 || Position.BoardSize <= fileTo || rankTo < 0 || Position.BoardSize <= rankTo)
+                            {
+                                break;
+                            }
+
+                            ++counts[fileTo, rankTo];
+
+                            if (board[fileTo, rankTo] != Piece.NoPiece)
+                            {
+                                // 駒にぶつかったらそこまでは利くが、その先には利かない（自駒・敵駒問わず）
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return counts;
+        }
+
+        /// <summary>
         /// 歩と香が敵陣1段目、桂が敵陣1段目と2段目に成らずに移動できないことを判定する
         /// </summary>
         /// <param name="pieceFrom"></param>

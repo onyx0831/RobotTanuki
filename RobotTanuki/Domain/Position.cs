@@ -259,6 +259,41 @@ namespace RobotTanuki
         }
 
         /// <summary>
+        /// 指定した色の玉の位置を探す。
+        /// </summary>
+        public (int File, int Rank) FindKingSquare(Color color)
+        {
+            if (TryFindKingSquare(color, out var square))
+            {
+                return square;
+            }
+
+            throw new InvalidOperationException($"{color}の玉が盤面に見つかりません");
+        }
+
+        /// <summary>
+        /// 指定した色の玉の位置を探す。見つからない場合はfalseを返す。
+        /// </summary>
+        public bool TryFindKingSquare(Color color, out (int File, int Rank) square)
+        {
+            var king = color == Color.Black ? Piece.BlackKing : Piece.WhiteKing;
+            for (int file = 0; file < BoardSize; ++file)
+            {
+                for (int rank = 0; rank < BoardSize; ++rank)
+                {
+                    if (Board[file, rank] == king)
+                    {
+                        square = (file, rank);
+                        return true;
+                    }
+                }
+            }
+
+            square = default;
+            return false;
+        }
+
+        /// <summary>
         /// 局面を文字列化する。sfenではなく独自形式とする。
         /// </summary>
         public override String ToString()

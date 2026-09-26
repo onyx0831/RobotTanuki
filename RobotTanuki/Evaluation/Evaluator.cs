@@ -11,10 +11,10 @@ namespace RobotTanuki
         {
             int value = 0;
 
-            // 盤上の駒の評価値を合算
+            // 盤上の駒の評価値を合算。持ち駒よりどこにでも打てる分だけ柔軟性が低いので、価値を1割引く。
             foreach (var piece in position.Board)
             {
-                value += PieceValues[(int)piece];
+                value += PieceValues[(int)piece] * 9 / 10;
             }
 
             // 持ち駒の評価値を合算
@@ -22,6 +22,8 @@ namespace RobotTanuki
             {
                 value += PieceValues[i] * position.HandPieces[i];
             }
+
+            value += EvaluateKingSafety(position);
 
             // 後手の場合は評価値を反転
             if (position.SideToMove == Color.White)
@@ -38,6 +40,51 @@ namespace RobotTanuki
         public static int GetPieceValue(Piece piece)
         {
             return Math.Abs(PieceValues[(int)piece]);
+        }
+
+        // 自玉を守る利きの価値（距離1マスあたりの基準値）
+        private const int DefenseBaseValue = 60;
+
+        // 敵玉を攻める利きの価値。守りより攻めを高く評価する。
+        private const int ThreatBaseValue = 90;
+
+        /// <summary>
+        /// 玉の周囲の利きを評価する。先手から見た値を返す。
+        /// 玉に近いマスほど価値が高く、距離に反比例して減衰する。
+        /// </summary>
+        private static int EvaluateKingSafety(Position position)
+        {
+            var blackControl = MoveGenerator.ComputeControlCounts(position, Color.Black);
+            var whiteControl = MoveGenerator.ComputeControlCounts(position, Color.White);
+
+            return EvaluateKingSafetyFor(position, Color.Black, blackControl, whiteControl)
+                - EvaluateKingSafetyFor(position, Color.White, whiteControl, blackControl);
+        }
+
+        /// <summary>
+        /// colorの玉について、その周囲の利きの価値をcolorから見た値で返す。
+        /// </summary>
+        private static int EvaluateKingSafetyFor(Position position, Color color, int[,] ownControl, int[,] enemyControl)
+        {
+            if (!position.TryFindKingSquare(color, out var kingSquare))
+            {
+                // 玉が盤面にない局面（デバッグ用のSFENなど）では、その玉の安全度評価は0点として扱う。
+                return 0;
+            }
+            var (kingFile, kingRank) = kingSquare;
+            int value = 0;
+
+            for (int file = 0; file < Position.BoardSize; ++file)
+            {
+                for (int rank = 0; rank < Position.BoardSize; ++rank)
+                {
+                    int distance = Math.Max(Math.Abs(file - kingFile), Math.Abs(rank - kingRank));
+                    value += ownControl[file, rank] * DefenseBaseValue / (distance + 1);
+                    value -= enemyControl[file, rank] * ThreatBaseValue / (distance + 1);
+                }
+            }
+
+            return value;
         }
 
         private static readonly int[] PieceValues = {
