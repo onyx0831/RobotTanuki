@@ -202,18 +202,25 @@ namespace RobotTanuki
         /// </summary>
         public static IEnumerable<Move> GenerateLegal(Position position)
         {
-            var sideToMove = position.SideToMove;
             foreach (var move in Generate(position))
             {
-                position.DoMove(move);
-                bool leavesOwnKingCapturable = IsKingCapturable(position, sideToMove);
-                position.UndoMove(move);
-
-                if (!leavesOwnKingCapturable)
+                if (IsLegal(position, move))
                 {
                     yield return move;
                 }
             }
+        }
+
+        /// <summary>
+        /// 指した結果、自玉が相手に取られる状態にならないかどうかを判定する。
+        /// </summary>
+        public static bool IsLegal(Position position, Move move)
+        {
+            var sideToMove = position.SideToMove;
+            position.DoMove(move);
+            bool leavesOwnKingCapturable = IsKingCapturable(position, sideToMove);
+            position.UndoMove(move);
+            return !leavesOwnKingCapturable;
         }
 
         /// <summary>
