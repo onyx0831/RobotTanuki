@@ -154,19 +154,19 @@ namespace RobotTanuki
             return move;
         }
 
-        public static Move Resign = new Move
+        public static readonly Move Resign = new Move
         {
             FileFrom = 2,
             FileTo = 2,
         };
 
-        public static Move Win = new Move
+        public static readonly Move Win = new Move
         {
             FileFrom = 3,
             FileTo = 3,
         };
 
-        public static Move None = new Move
+        public static readonly Move None = new Move
         {
             FileFrom = 4,
             FileTo = 4,

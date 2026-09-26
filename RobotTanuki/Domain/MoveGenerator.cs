@@ -17,7 +17,6 @@ namespace RobotTanuki
         /// 指し手を生成する。通常の探索から使用することを想定している。
         /// </summary>
         /// <param name="position"></param>
-        /// <param name="position">置換表に登録されている指し手</param>
         /// <returns></returns>
         public static IEnumerable<Move> Generate(Position position)
         {
@@ -56,8 +55,8 @@ namespace RobotTanuki
 
                             if (fileTo < 0 || Position.BoardSize <= fileTo || rankTo < 0 || Position.BoardSize <= rankTo)
                             {
-                                // 盤外
-                                continue;
+                                // 盤外に出たら、この方向にはもう戻ってこないのでここで打ち切る。
+                                break;
                             }
 
                             var pieceTo = board[fileTo, rankTo];
@@ -212,15 +211,51 @@ namespace RobotTanuki
         }
 
         /// <summary>
-        /// 指した結果、自玉が相手に取られる状態にならないかどうかを判定する。
+        /// 指した結果、自玉が相手に取られる状態にならないか、また打ち歩詰めでないかを判定する。
         /// </summary>
         public static bool IsLegal(Position position, Move move)
         {
             var sideToMove = position.SideToMove;
             position.DoMove(move);
             bool leavesOwnKingCapturable = IsKingCapturable(position, sideToMove);
+            bool isPawnDropCheckmate = !leavesOwnKingCapturable && IsIllegalPawnDropCheckmate(move, position);
             position.UndoMove(move);
-            return !leavesOwnKingCapturable;
+            return !leavesOwnKingCapturable && !isPawnDropCheckmate;
+        }
+
+        /// <summary>
+        /// 打ち歩詰め（歩を打って王手をかけ、相手の合法手を1つも残さない反則手）かどうかを判定する。
+        /// positionは指し手を指した後（相手の手番になった）状態を渡す。
+        /// 対象を歩打ちに絞ることで、コストの高い合法手の有無チェックを最小限にしている。
+        /// </summary>
+        private static bool IsIllegalPawnDropCheckmate(Move move, Position position)
+        {
+            if (!move.Drop || (move.PieceFrom != Piece.BlackPawn && move.PieceFrom != Piece.WhitePawn))
+            {
+                return false;
+            }
+
+            var opponent = position.SideToMove;
+            if (!IsInCheck(position, opponent))
+            {
+                return false;
+            }
+
+            return !GenerateLegal(position).Any();
+        }
+
+        /// <summary>
+        /// 指定した色の玉が、手番に関係なく敵の利きにさらされているか（王手されているか）を判定する。
+        /// </summary>
+        public static bool IsInCheck(Position position, Color color)
+        {
+            if (!position.TryFindKingSquare(color, out var kingSquare))
+            {
+                return false;
+            }
+
+            var enemyControl = ComputeControlCounts(position, color.ToOpponent());
+            return enemyControl[kingSquare.File, kingSquare.Rank] > 0;
         }
 
         /// <summary>
