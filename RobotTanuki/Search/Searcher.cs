@@ -79,7 +79,7 @@ namespace RobotTanuki
         /// <summary>
         /// ネガマックス形式のアルファベータ法で探索する。
         /// </summary>
-        private static BestMove Search(Position position, int depth, int alpha, int beta, ref int nodes, CancellationToken cancellationToken)
+        private static BestMove Search(Position position, int depth, int alpha, int beta, ref int nodes, CancellationToken cancellationToken, bool allowNullMove = true)
         {
             if (depth == 0)
             {
@@ -106,8 +106,10 @@ namespace RobotTanuki
             // Null Move Pruning: 一手パスしても（＝相手に手番をそのまま渡しても）なおbeta以上なら、
             // 自分が指せば当然beta以上のはずなので、全ての指し手を調べずに打ち切る。
             // 王手中にパスするのは不自然（王手放置になる）なので対象外。詰みが絡む窓では
-            // 誤ったmateスコアの打ち切りを避けるため対象外にする。
-            if (depth >= NullMoveMinDepth
+            // 誤ったmateスコアの打ち切りを避けるため対象外にする。連続パスは同じ局面を深さだけ
+            // 減らして読み直すだけの無駄な探索になるため、パスの直後は再度パスできないようにする。
+            if (allowNullMove
+                && depth >= NullMoveMinDepth
                 && !IsMateScore(beta)
                 && !MoveGenerator.IsInCheck(position, position.SideToMove))
             {
@@ -115,7 +117,7 @@ namespace RobotTanuki
                 int nullMoveValue;
                 try
                 {
-                    nullMoveValue = -Search(position, depth - 1 - NullMoveReduction, -beta, -beta + 1, ref nodes, cancellationToken).Value;
+                    nullMoveValue = -Search(position, depth - 1 - NullMoveReduction, -beta, -beta + 1, ref nodes, cancellationToken, allowNullMove: false).Value;
                 }
                 finally
                 {
