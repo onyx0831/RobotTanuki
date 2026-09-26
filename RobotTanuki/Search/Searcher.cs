@@ -9,6 +9,8 @@ namespace RobotTanuki
 {
     public class Searcher
     {
+        private static readonly TranspositionTable table = new TranspositionTable(1 << 20);
+
         // intの範囲で安全に符号反転できる大きさ。詰みが今起きた瞬間の値としても使う。
         private const int Infinity = 1_000_000_000;
 
@@ -45,12 +47,29 @@ namespace RobotTanuki
                 };
             }
 
+            ulong hash = position.Hash;
+            int originalAlpha = alpha;
+            Move? ttMove = null;
+            if (table.TryGet(hash, out var ttEntry))
+            {
+                ttMove = ttEntry.BestMove;
+                if (ttEntry.Depth >= depth)
+                {
+                    if (ttEntry.Bound == TranspositionTableBound.Exact
+                        || (ttEntry.Bound == TranspositionTableBound.LowerBound && ttEntry.Value >= beta)
+                        || (ttEntry.Bound == TranspositionTableBound.UpperBound && ttEntry.Value <= alpha))
+                    {
+                        return new BestMove { Move = ttEntry.BestMove, Value = ttEntry.Value };
+                    }
+                }
+            }
+
             int bestValue = -Infinity;
             Move bestMove = Move.Resign;
             BestMove? bestChildMove = null;
             // GenerateLegal()後に並べ替えると遅延評価が効かず、枝刈りで省けるはずの
             // 合法性チェックまで全手分先に実行してしまうため、擬似合法手の段階で並べ替える。
-            var moves = MoveGenerator.Generate(position).OrderByDescending(ScoreForOrdering);
+            var moves = MoveGenerator.Generate(position).OrderByDescending(move => ScoreForOrdering(move, ttMove));
             foreach (var move in moves)
             {
                 if (!MoveGenerator.IsLegal(position, move))
@@ -88,6 +107,11 @@ namespace RobotTanuki
                 }
             }
 
+            var bound = bestValue <= originalAlpha ? TranspositionTableBound.UpperBound
+                : bestValue >= beta ? TranspositionTableBound.LowerBound
+                : TranspositionTableBound.Exact;
+            table.Store(hash, depth, bestValue, bestMove, bound);
+
             return new BestMove
             {
                 Move = bestMove,
@@ -96,12 +120,14 @@ namespace RobotTanuki
             };
         }
 
-        /// <summary>
-        /// 指し手オーダリング用のスコア（MVV-LVA）。駒を取らない手は0（元の生成順のまま）。
-        /// 取る手は、取られる駒の価値が高いほど、攻撃する駒の価値が安いほど優先される。
-        /// </summary>
-        private static int ScoreForOrdering(Move move)
+        /// <summary>指し手オーダリング用のスコア（置換表の手を最優先、次にMVV-LVA）。</summary>
+        private static int ScoreForOrdering(Move move, Move? ttMove)
         {
+            if (ttMove != null && move.Equals(ttMove))
+            {
+                return int.MaxValue;
+            }
+
             if (move.PieceTo == Piece.NoPiece)
             {
                 return 0;
