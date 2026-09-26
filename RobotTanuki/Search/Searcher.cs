@@ -29,11 +29,6 @@ namespace RobotTanuki
             return value > 0 ? Infinity - value : -(Infinity + value);
         }
 
-        public static BestMove Search(Position position, int depth, ref int nodes, CancellationToken cancellationToken = default)
-        {
-            return Search(position, depth, -Infinity, Infinity, ref nodes, cancellationToken);
-        }
-
         /// <summary>
         /// 深さ1から順に探索し、完了した深さごとにonDepthCompletedを呼ぶ。
         /// cancellationTokenが要求された時点では直前に完了した深さの結果を返す（深さ1は必ず完了させる）。
@@ -119,9 +114,17 @@ namespace RobotTanuki
                 cancellationToken.ThrowIfCancellationRequested();
 
                 ++nodes;
+                BestMove childBestMove;
                 position.DoMove(move);
-                BestMove childBestMove = Search(position, depth - 1, -beta, -alpha, ref nodes, cancellationToken);
-                position.UndoMove(move);
+                try
+                {
+                    childBestMove = Search(position, depth - 1, -beta, -alpha, ref nodes, cancellationToken);
+                }
+                finally
+                {
+                    // キャンセルで例外が飛んでもUndoMoveを必ず実行し、局面を壊さない。
+                    position.UndoMove(move);
+                }
 
                 int value = -childBestMove.Value;
                 if (IsMateScore(value))

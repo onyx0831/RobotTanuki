@@ -22,6 +22,7 @@ namespace RobotTanuki
         private CancellationTokenSource? searchCancellation;
         private Task? searchTask;
         private GoOptions? currentGoOptions;
+        private Color searchSideToMove;
 
         public void SetOption(string name, string value)
         {
@@ -30,13 +31,19 @@ namespace RobotTanuki
 
         public void NewGame()
         {
+            Stop();
+            WaitForSearchToStop();
         }
 
         /// <summary>
         /// 局面をセットする。sfenがnullの場合は平手初期局面から開始する。
+        /// バックグラウンドの探索がPositionを触っている間に書き換えないよう、先に探索の終了を待つ。
         /// </summary>
         public void SetPosition(string? sfen, IEnumerable<string> moveStrings)
         {
+            Stop();
+            WaitForSearchToStop();
+
             position.Set(sfen ?? Position.StartposSfen);
 
             foreach (var moveString in moveStrings)
@@ -50,16 +57,18 @@ namespace RobotTanuki
         /// 反復深化で探索をバックグラウンド実行する。深さが1つ完了するたびにonDepthCompletedが呼ばれ、
         /// 探索が終了（時間切れ/stop/最大深さ到達）するとonSearchCompletedが1回呼ばれる。
         /// </summary>
-        public void Go(GoOptions options, Action<SearchProgress> onDepthCompleted, Action<SearchProgress> onSearchCompleted)
+        public void Go(GoOptions options, Action<SearchProgress> onDepthCompleted, Action<SearchProgress> onSearchCompleted, Action<string>? onError = null)
         {
             Stop();
             WaitForSearchToStop();
+            searchCancellation?.Dispose();
 
             currentGoOptions = options;
+            searchSideToMove = position.SideToMove;
             var cts = new CancellationTokenSource();
             searchCancellation = cts;
 
-            var thinkingTimeMs = TimeManager.CalculateThinkingTimeMs(options, position.SideToMove);
+            var thinkingTimeMs = TimeManager.CalculateThinkingTimeMs(options, searchSideToMove);
             if (thinkingTimeMs.HasValue)
             {
                 cts.CancelAfter(thinkingTimeMs.Value);
@@ -68,24 +77,45 @@ namespace RobotTanuki
             var beginTime = DateTime.Now;
             searchTask = Task.Run(() =>
             {
-                var bestMove = Searcher.SearchIterative(position, MaxSearchDepth, cts.Token, out int nodes, (result, depth, depthNodes) =>
+                try
                 {
-                    onDepthCompleted(new SearchProgress
+                    var bestMove = Searcher.SearchIterative(position, MaxSearchDepth, cts.Token, out int nodes, (result, depth, depthNodes) =>
                     {
-                        Result = result,
-                        Depth = depth,
-                        Nodes = depthNodes,
+                        onDepthCompleted(new SearchProgress
+                        {
+                            Result = result,
+                            Depth = depth,
+                            Nodes = depthNodes,
+                            TimeMs = (int)(DateTime.Now - beginTime).TotalMilliseconds,
+                        });
+                    });
+
+                    // USIの規約上、infinite/ponder中はstop（またはponderhit後の時間切れ）が来るまでbestmoveを送ってはいけない。
+                    // 詰み等で反復深化が最大深さまで瞬時に終わっても、ここで実際のキャンセルを待つ。
+                    if ((options.Infinite || options.Ponder) && !cts.Token.IsCancellationRequested)
+                    {
+                        cts.Token.WaitHandle.WaitOne();
+                    }
+
+                    onSearchCompleted(new SearchProgress
+                    {
+                        Result = bestMove,
+                        Depth = bestMove.Depth,
+                        Nodes = nodes,
                         TimeMs = (int)(DateTime.Now - beginTime).TotalMilliseconds,
                     });
-                });
-
-                onSearchCompleted(new SearchProgress
+                }
+                catch (Exception ex)
                 {
-                    Result = bestMove,
-                    Depth = bestMove.Depth,
-                    Nodes = nodes,
-                    TimeMs = (int)(DateTime.Now - beginTime).TotalMilliseconds,
-                });
+                    onError?.Invoke(ex.Message);
+                    onSearchCompleted(new SearchProgress
+                    {
+                        Result = new BestMove { Move = Move.Resign, Value = -1_000_000_000 },
+                        Depth = 0,
+                        Nodes = 0,
+                        TimeMs = (int)(DateTime.Now - beginTime).TotalMilliseconds,
+                    });
+                }
             });
         }
 
@@ -129,7 +159,9 @@ namespace RobotTanuki
             };
             currentGoOptions = realOptions;
 
-            var thinkingTimeMs = TimeManager.CalculateThinkingTimeMs(realOptions, position.SideToMove);
+            // position.SideToMoveはバックグラウンドの探索がDoMove/UndoMoveで随時書き換えているため使わず、
+            // Go()開始時点の手番をsearchSideToMoveに保存しておいたものを使う。
+            var thinkingTimeMs = TimeManager.CalculateThinkingTimeMs(realOptions, searchSideToMove);
             if (thinkingTimeMs.HasValue)
             {
                 searchCancellation.CancelAfter(thinkingTimeMs.Value);

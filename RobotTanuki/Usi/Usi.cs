@@ -154,6 +154,10 @@ namespace RobotTanuki
                                 }
                             }
                             Console.Out.Flush();
+                        }, message =>
+                        {
+                            Console.WriteLine("info string " + message);
+                            Console.Out.Flush();
                         });
                         break;
 
