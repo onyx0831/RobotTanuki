@@ -3,6 +3,9 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
+# dotnet publish output (README記載の手順で生成される)
+RobotTanuki/build/
+
 # User-specific files
 *.rsuser
 *.suo

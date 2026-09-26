@@ -39,13 +39,19 @@ Program → Usi → Engine → Search → Evaluation → Domain
   ```bash
   dotnet build
   ```
-- dotnet publishで公開
+- dotnet publishで公開（Windows向け）
   ```bash
   dotnet publish -c Release -r win-x64 --self-contained true -o build
   ```
+- dotnet publishで公開（Mac向け、Apple Siliconの場合）
+  ```bash
+  dotnet publish -c Release -r osx-arm64 --self-contained true -o build
+  ```
+  Intel Macの場合は`osx-arm64`の代わりに`osx-x64`を指定する。`build/`はgit管理外なので、Windows向け/Mac向けを同じフォルダに交互にpublishしても問題ない。
 
 ## デバッグする
-- build/exeファイルを開く
+- Windowsの場合はbuild/exeファイルを開く
+- Macの場合はShogiHomeなどのGUIにbuild/RobotTanuki（拡張子なし）を思考エンジンとして登録する
 
 初期局面のセット
 - プロンプト上で「position startpos」または「position sfen lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1」を入力
