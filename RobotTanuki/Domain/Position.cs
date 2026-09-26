@@ -10,7 +10,7 @@ namespace RobotTanuki
     public class Position
     {
         public const string StartposSfen = "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1";
-        
+
         public const int BoardSize = 9;  // 盤面の一辺のマス数
 
         /// <summary>手番</summary>
@@ -105,7 +105,7 @@ namespace RobotTanuki
                 PutPiece(move.FileTo, move.RankTo, move.PieceTo);
             }
         }
-        
+
         /// <summary>
         /// 盤面に駒を配置する
         /// </summary>
@@ -182,7 +182,7 @@ namespace RobotTanuki
                 }
                 else if (Char.IsDigit(ch))
                 {
-                    int emptySquares = ch -'0';
+                    int emptySquares = ch - '0';
                     while (emptySquares-- > 0)
                         Board[file--, rank] = Piece.NoPiece;
                 }
@@ -212,7 +212,7 @@ namespace RobotTanuki
                     count = count * 10 + (ch - '0');
                     continue;
                 }
-                
+
                 var piece = PieceExtensions.CharToPiece[ch];
                 Debug.Assert(piece != Piece.NoPiece);
                 HandPieces[(int)piece] += Math.Max(1, count);

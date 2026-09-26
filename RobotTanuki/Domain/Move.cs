@@ -21,8 +21,8 @@ namespace RobotTanuki
         public Piece PieceTo { get; set; }
         public bool Drop { get; set; }
         public bool Promotion { get; set; }
-        public Color SideToMove { get; set; }    
-    
+        public Color SideToMove { get; set; }
+
 
         /// 差し手の文字列変換
         public override string ToString()
@@ -153,7 +153,7 @@ namespace RobotTanuki
             move.SideToMove = position.SideToMove;
             return move;
         }
-    
+
         public static Move Resign = new Move
         {
             FileFrom = 2,
