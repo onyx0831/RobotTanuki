@@ -151,7 +151,7 @@ namespace RobotTanuki
                         || (ttEntry.Bound == TranspositionTableBound.LowerBound && ttEntry.Value >= beta)
                         || (ttEntry.Bound == TranspositionTableBound.UpperBound && ttEntry.Value <= alpha))
                     {
-                        return new BestMove { Move = Move.FromUshort(position, ttEntry.BestMove16), Value = ttEntry.Value };
+                        return new BestMove { Move = Move.FromUshort(position, ttMove16.Value), Value = ttEntry.Value };
                     }
                 }
             }
@@ -195,7 +195,7 @@ namespace RobotTanuki
             int moveCount = 0;
             // GenerateLegal()後に並べ替えると遅延評価が効かず、枝刈りで省けるはずの
             // 合法性チェックまで全手分先に実行してしまうため、擬似合法手の段階で並べ替える。
-            var moves = MoveGenerator.Generate(position).OrderByDescending(move => ScoreForOrdering(move, ttMove16));
+            var moves = OrderByScore(MoveGenerator.Generate(position), ttMove16);
             foreach (var move in moves)
             {
                 // 重い合法性チェックより前に判定する。最初の1手は必ず読み、詰みと誤判定しないようにする。
@@ -334,13 +334,9 @@ namespace RobotTanuki
             Move bestMove = Move.Resign;
             BestMove? bestChildMove = null;
 
-            // 王手されていなければ「駒を取る手」「成る手」だけ、王手されていれば回避手を読む。
-            // 成る手も対象にすることで、成り捨てや、成った直後に取り返される手を静止探索で検知できるようにする。
             // 通常探索が置換表に残した最善手があれば先に読み、回避手の枠に良い手が入りやすくする。
             ushort? ttMove16 = table.TryGet(position.Hash, out var ttEntry) ? ttEntry.BestMove16 : null;
-            var moves = MoveGenerator.Generate(position)
-                .Where(move => inCheck || move.PieceTo != Piece.NoPiece || move.Promotion)
-                .OrderByDescending(move => ScoreForOrdering(move, ttMove16));
+            var moves = GenerateQuiescenceMoves(position, inCheck, ttMove16);
             int quietEvasionCount = 0;
             foreach (var move in moves)
             {
@@ -415,11 +411,30 @@ namespace RobotTanuki
             };
         }
 
+        /// <summary>
+        /// 静止探索で読む手を、置換表の手を最優先、次にMVV-LVAの順に並べて返す。
+        /// </summary>
+        private static IEnumerable<Move> GenerateQuiescenceMoves(Position position, bool inCheck, ushort? ttMove16)
+        {
+            // 王手されていなければ「駒を取る手」「成る手」だけ、王手されていれば回避手を読む。
+            // 成る手も対象にすることで、成り捨てや、成った直後に取り返される手を静止探索で検知できるようにする。
+            return OrderByScore(MoveGenerator.Generate(position).Where(move => inCheck || move.PieceTo != Piece.NoPiece || move.Promotion), ttMove16);
+        }
+
+        /// <summary>
+        /// 置換表の手を最優先、次にMVV-LVAの順に並べる。並べ替えのラムダが探索のメソッドの変数を捕まえると、
+        /// 並べ替えずに早く抜けるノードでもクロージャが確保されるため、引数で受け取るメソッドに分けている。
+        /// </summary>
+        private static IEnumerable<Move> OrderByScore(IEnumerable<Move> moves, ushort? ttMove16)
+        {
+            return moves.OrderByDescending(move => ScoreForOrdering(move, ttMove16));
+        }
+
         /// <summary>指し手オーダリング用のスコア（置換表の手を最優先、次にMVV-LVA）。</summary>
-        /// <param name="ttMove16">置換表の手。当たるたびにMoveを確保しないよう、詰めたまま比べる。</param>
+        /// <param name="ttMove16">置換表の手。当たるたびにMoveを確保しないよう詰めたまま比べるので、同じ局面の手どうしでしか比べられない。</param>
         private static int ScoreForOrdering(Move move, ushort? ttMove16)
         {
-            if (move.ToUshort() == ttMove16)
+            if (ttMove16.HasValue && move.ToUshort() == ttMove16.Value)
             {
                 return int.MaxValue;
             }
