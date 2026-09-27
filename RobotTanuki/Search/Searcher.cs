@@ -40,7 +40,8 @@ namespace RobotTanuki
         private const int FutilityMaxDepth = 2;
 
         // 静かな手1手で評価値がこれ以上は動かないとみなす余裕分（残り深さ1あたり）。
-        private const int FutilityMarginPerDepth = 300;
+        // 玉が味方に守られるだけで駒の安全度の評価が+450動くため、それを上回る値にする。
+        private const int FutilityMarginPerDepth = 500;
 
         public static bool IsMateScore(int value)
         {
@@ -119,9 +120,7 @@ namespace RobotTanuki
                 }
             }
 
-            // 王手の判定は重いので、使うNMP・LMRが働く深さでだけ計算する（それより浅いと常にfalse）。
-            bool inCheck = depth >= Math.Min(NullMoveMinDepth, LateMoveReductionMinDepth)
-                && MoveGenerator.IsInCheck(position, position.SideToMove);
+            bool inCheck = MoveGenerator.IsInCheck(position, position.SideToMove);
 
             // Null Move Pruning: 一手パスしても（＝相手に手番をそのまま渡しても）なおbeta以上なら、
             // 自分が指せば当然beta以上のはずなので、全ての指し手を調べずに打ち切る。
@@ -150,13 +149,9 @@ namespace RobotTanuki
                 }
             }
 
-            // Futility Pruning: 今の評価値に余裕分を足してもalphaに届かないなら、駒を取らない静かな手を
-            // 指してもalphaを超えることはまずないので読まない。
-            // 浅い深さではinCheckを計算していないので、ここで判定する。
-            bool canFutilityPrune = depth <= FutilityMaxDepth
-                && !IsMateScore(alpha)
-                && !MoveGenerator.IsInCheck(position, position.SideToMove);
-            int futilityValue = canFutilityPrune ? Evaluator.Evaluate(position) + FutilityMarginPerDepth * depth : 0;
+            // Futility Pruning: 評価値に余裕分を足してもalphaに届かないなら、静かな手ではalphaを超えないとみなして読まない。
+            bool canFutilityPrune = depth <= FutilityMaxDepth && !inCheck;
+            int? futilityValue = null;
 
             int bestValue = -Infinity;
             Move bestMove = Move.Resign;
@@ -167,18 +162,21 @@ namespace RobotTanuki
             var moves = MoveGenerator.Generate(position).OrderByDescending(move => ScoreForOrdering(move, ttMove));
             foreach (var move in moves)
             {
-                // 合法性チェック（相手の全ての手を生成するため重い）より前に判定して、そのコストも省く。
-                // 最初の1手は必ず読み、指せる手があるのに詰みと判定されないようにする。
+                // 重い合法性チェックより前に判定する。最初の1手は必ず読み、詰みと誤判定しないようにする。
                 if (canFutilityPrune
-                    && futilityValue <= alpha
                     && moveCount > 0
                     && move.PieceTo == Piece.NoPiece
                     && !move.Promotion
-                    && !MoveGenerator.GivesCheck(position, move))
+                    && !IsMateScore(alpha))
                 {
-                    // 読まなかった手の値はfutilityValue以下とみなし、fail-softで返す上限値を低く見積もりすぎないようにする。
-                    bestValue = Math.Max(bestValue, futilityValue);
-                    continue;
+                    // 1手目でbeta cutになるノードが多いので、評価値は枝刈りの候補が来てから計算する。
+                    futilityValue ??= Evaluator.Evaluate(position) + FutilityMarginPerDepth * depth;
+                    if (futilityValue <= alpha && !MoveGenerator.GivesCheck(position, move))
+                    {
+                        // 読まなかった手の分として、返す上限値を低く見積もりすぎないようにする。
+                        bestValue = Math.Max(bestValue, futilityValue.Value);
+                        continue;
+                    }
                 }
 
                 if (!MoveGenerator.IsLegal(position, move))
