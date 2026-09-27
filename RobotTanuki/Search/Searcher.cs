@@ -21,6 +21,9 @@ namespace RobotTanuki
         // 静止探索の延長上限。取り合い・王手が続く限り延長するが、際限なく続かないための安全弁。
         private const int QuiescenceMaxPly = 32;
 
+        // 静止探索で王手を回避する手のうち、駒を取らない手（玉の移動・合駒）を読む上限。
+        private const int QuiescenceMaxQuietEvasions = 2;
+
         // Null Move Pruningを試す最小の残り深さ。浅すぎる場所で使うと縮小後の深さが0未満になり得るため。
         private const int NullMoveMinDepth = 3;
 
@@ -213,7 +216,7 @@ namespace RobotTanuki
         /// <summary>
         /// 静止探索。駒を取り合っている最中に探索を打ち切ると、駒を取られる直前で評価してしまう
         /// 「地平線効果」が起きるため、取り合いが落ち着くまで（駒を取る手が尽きるまで）延長して読む。
-        /// 王手されている場合はstand pat（今の評価値をそのまま採用する）をせず、合法な応手を全て読む。
+        /// 王手されている場合はstand pat（今の評価値をそのまま採用する）をせず、回避手を読む。
         /// </summary>
         private static BestMove QuiescenceSearch(Position position, int alpha, int beta, int ply, ref int nodes, CancellationToken cancellationToken)
         {
@@ -244,16 +247,33 @@ namespace RobotTanuki
             Move bestMove = Move.Resign;
             BestMove? bestChildMove = null;
 
-            // 王手されていなければ「駒を取る手」「成る手」だけ、王手されていれば全ての合法手（回避手）を読む。
+            // 王手されていなければ「駒を取る手」「成る手」だけ、王手されていれば回避手を読む。
             // 成る手も対象にすることで、成り捨てや、成った直後に取り返される手を静止探索で検知できるようにする。
+            // 通常探索が置換表に残した最善手があれば先に読み、回避手の枠に良い手が入りやすくする。
+            Move? ttMove = table.TryGet(position.Hash, out var ttEntry) ? ttEntry.BestMove : null;
             var moves = MoveGenerator.Generate(position)
                 .Where(move => inCheck || move.PieceTo != Piece.NoPiece || move.Promotion)
-                .OrderByDescending(move => ScoreForOrdering(move, null));
+                .OrderByDescending(move => ScoreForOrdering(move, ttMove));
+            int quietEvasionCount = 0;
             foreach (var move in moves)
             {
+                // 「王手→逃げ・合駒→取りながら王手」の連鎖で爆発するため、駒を取らない回避手は上限までにする。
+                // 詰まされない手が見つかるまで制限しないのは、詰みと誤判定しないため。
+                // 入口の王手を除くのは、受けを削ると無理な王手を過大評価するため。
+                bool isQuietEvasion = inCheck && move.PieceTo == Piece.NoPiece && ply < QuiescenceMaxPly;
+                if (isQuietEvasion && quietEvasionCount >= QuiescenceMaxQuietEvasions && bestValue > -MateThreshold)
+                {
+                    break;
+                }
+
                 if (!MoveGenerator.IsLegal(position, move))
                 {
                     continue;
+                }
+
+                if (isQuietEvasion)
+                {
+                    ++quietEvasionCount;
                 }
 
                 cancellationToken.ThrowIfCancellationRequested();
@@ -321,7 +341,9 @@ namespace RobotTanuki
                 return 0;
             }
 
-            return Evaluator.GetPieceValue(move.PieceTo) * 10 - Evaluator.GetPieceValue(move.PieceFrom);
+            // 玉や大駒で安い駒を取ると値がマイナスになり、駒を取らない手より後ろに並んでしまうため玉の価値を足す。
+            // 静止探索の回避手のbreakは、駒を取る手が全て先に並ぶことを前提にしている。
+            return Evaluator.GetPieceValue(Piece.BlackKing) + Evaluator.GetPieceValue(move.PieceTo) * 10 - Evaluator.GetPieceValue(move.PieceFrom);
         }
     }
 }
