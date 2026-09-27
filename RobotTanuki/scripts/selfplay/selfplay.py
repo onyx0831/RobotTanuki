@@ -207,6 +207,9 @@ def main():
             del local.a, local.b
         a_score = result if a_is_black else 1 - result
         with lock:
+            # -itでのCtrl+CはエンジンにもSIGINTが届くため、中断で落ちた対局をエラー負けとして数えない。
+            if stopping.is_set():
+                return
             results.append(a_score)
             print(f"[{len(results)}/{len(jobs)}] 開始局面{i} Aが{'先手' if a_is_black else '後手'}: "
                   f"A={a_score}（{reason}、{len(moves)}手）", flush=True)
