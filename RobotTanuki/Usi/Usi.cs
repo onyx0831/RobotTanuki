@@ -50,12 +50,13 @@ namespace RobotTanuki
                         Console.WriteLine($"id name {engine.Name}");
                         Console.WriteLine($"id author {engine.Author}");
                         Console.WriteLine($"option name {USI_Ponder} type check default true");
-                        Console.WriteLine($"option name {USI_Hash} type spin default {Searcher.DefaultHashMegabytes} min 1 max {Searcher.MaxHashMegabytes}");
+                        Console.WriteLine($"option name {USI_Hash} type spin default {Searcher.DefaultHashMegabytes} min {Searcher.MinHashMegabytes} max {Searcher.MaxHashMegabytes}");
                         Console.WriteLine("usiok");
                         Console.Out.Flush();
                         break;
 
                     case "isready":
+                        engine.Prepare();
                         Console.WriteLine("readyok");
                         Console.Out.Flush();
                         break;
@@ -70,7 +71,11 @@ namespace RobotTanuki
                         Debug.Assert(split[3] == "value");
                         if (split[2] == USI_Hash)
                         {
-                            engine.SetHashSize(int.Parse(split[4]));
+                            // 読めない値で落ちないよう、無視して前の値のままにする。
+                            if (int.TryParse(split[4], out int megabytes))
+                            {
+                                engine.SetHashSize(megabytes);
+                            }
                         }
                         else
                         {
