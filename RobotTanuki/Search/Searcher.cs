@@ -10,11 +10,10 @@ namespace RobotTanuki
 {
     public class Searcher
     {
-        // USI_Hashの既定値・範囲（メガバイト）。置換表の各要素が指し手のオブジェクトを参照していて、
-        // 大きくするほどGCの走査が増えて遅くなるため、指し手を整数で持つようにするまで上限は既定値と同じにしている。
+        // USI_Hashの既定値・範囲（メガバイト）。上限は、要素数がintの範囲に十分収まり、一般的なPCのメモリで使える大きさにしている。
         public const int DefaultHashMegabytes = 32;
         public const int MinHashMegabytes = 1;
-        public const int MaxHashMegabytes = 32;
+        public const int MaxHashMegabytes = 4096;
 
         private static TranspositionTable table = TranspositionTable.FromMegabytes(DefaultHashMegabytes);
 
@@ -61,8 +60,9 @@ namespace RobotTanuki
         /// <summary>置換表をmegabytesに収まる大きさで作り直す。</summary>
         public static void ResizeTable(int megabytes)
         {
-            // 古い置換表を参照したまま新しいものを確保すると、その間は両方がメモリに載るため、先に手放す。
+            // 古い置換表を参照したまま新しいものを確保すると、その間は両方がメモリに載るため、先に手放して回収しておく。
             table = new TranspositionTable(1);
+            GC.Collect();
             table = TranspositionTable.FromMegabytes(megabytes);
             HashMegabytes = megabytes;
         }
@@ -144,14 +144,14 @@ namespace RobotTanuki
             Move? ttMove = null;
             if (table.TryGet(hash, out var ttEntry))
             {
-                ttMove = ttEntry.BestMove;
+                ttMove = Move.FromUshort(position, ttEntry.BestMove16);
                 if (ttEntry.Depth >= depth)
                 {
                     if (ttEntry.Bound == TranspositionTableBound.Exact
                         || (ttEntry.Bound == TranspositionTableBound.LowerBound && ttEntry.Value >= beta)
                         || (ttEntry.Bound == TranspositionTableBound.UpperBound && ttEntry.Value <= alpha))
                     {
-                        return new BestMove { Move = ttEntry.BestMove, Value = ttEntry.Value };
+                        return new BestMove { Move = ttMove, Value = ttEntry.Value };
                     }
                 }
             }
@@ -337,7 +337,7 @@ namespace RobotTanuki
             // 王手されていなければ「駒を取る手」「成る手」だけ、王手されていれば回避手を読む。
             // 成る手も対象にすることで、成り捨てや、成った直後に取り返される手を静止探索で検知できるようにする。
             // 通常探索が置換表に残した最善手があれば先に読み、回避手の枠に良い手が入りやすくする。
-            Move? ttMove = table.TryGet(position.Hash, out var ttEntry) ? ttEntry.BestMove : null;
+            Move? ttMove = table.TryGet(position.Hash, out var ttEntry) ? Move.FromUshort(position, ttEntry.BestMove16) : null;
             var moves = MoveGenerator.Generate(position)
                 .Where(move => inCheck || move.PieceTo != Piece.NoPiece || move.Promotion)
                 .OrderByDescending(move => ScoreForOrdering(move, ttMove));

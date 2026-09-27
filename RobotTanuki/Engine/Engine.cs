@@ -41,8 +41,9 @@ namespace RobotTanuki
 
         /// <summary>
         /// 探索の前の重い準備（置換表の確保）をする。大きさが変わっていなければ何もしない。
+        /// 指定の大きさを確保できなかったときは既定の大きさにして、onWarningで知らせる。
         /// </summary>
-        public void Prepare()
+        public void Prepare(Action<string>? onWarning = null)
         {
             if (hashMegabytes == Searcher.HashMegabytes)
             {
@@ -52,7 +53,17 @@ namespace RobotTanuki
             // バックグラウンドの探索が置換表を使っている間に作り直さないよう、先に探索の終了を待つ。
             Stop();
             WaitForSearchToStop();
-            Searcher.ResizeTable(hashMegabytes);
+            try
+            {
+                Searcher.ResizeTable(hashMegabytes);
+            }
+            catch (OutOfMemoryException)
+            {
+                // 落ちると対局を始められないため、既定の大きさで作り直して続けられるようにする。
+                onWarning?.Invoke($"Failed to allocate {hashMegabytes}MB for the hash table; using {Searcher.DefaultHashMegabytes}MB instead.");
+                hashMegabytes = Searcher.DefaultHashMegabytes;
+                Searcher.ResizeTable(hashMegabytes);
+            }
         }
 
         public void NewGame()
