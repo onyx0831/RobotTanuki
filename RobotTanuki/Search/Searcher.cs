@@ -145,7 +145,8 @@ namespace RobotTanuki
             if (table.TryGet(hash, out var ttEntry))
             {
                 ttMove16 = ttEntry.BestMove16;
-                if (ttEntry.Depth >= depth)
+                // 根で打ち切ると、読み筋もponderの手も出ず、手順に依存する千日手の値で指す手が決まることもあるため、根では打ち切らない。
+                if (ply > 0 && ttEntry.Depth >= depth)
                 {
                     if (ttEntry.Bound == TranspositionTableBound.Exact
                         || (ttEntry.Bound == TranspositionTableBound.LowerBound && ttEntry.Value >= beta)
