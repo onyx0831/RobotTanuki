@@ -30,6 +30,12 @@ namespace RobotTanuki
         // パスした後に探索する深さの減らし幅。
         private const int NullMoveReduction = 2;
 
+        // Late Move Reductionsを試す最小の残り深さ。縮小後も静止探索に直行しない深さを残すため。
+        private const int LateMoveReductionMinDepth = 3;
+
+        // 最初の数手（先頭の置換表の手など）は縮小しない。
+        private const int LateMoveReductionMinMoveCount = 4;
+
         public static bool IsMateScore(int value)
         {
             return Math.Abs(value) > MateThreshold;
@@ -84,7 +90,8 @@ namespace RobotTanuki
         /// </summary>
         private static BestMove Search(Position position, int depth, int alpha, int beta, ref int nodes, CancellationToken cancellationToken, bool allowNullMove = true)
         {
-            if (depth == 0)
+            // 縮小で深さが0を飛び越えて負になっても、再帰が止まるようにする。
+            if (depth <= 0)
             {
                 return QuiescenceSearch(position, alpha, beta, QuiescenceMaxPly, ref nodes, cancellationToken);
             }
@@ -106,6 +113,10 @@ namespace RobotTanuki
                 }
             }
 
+            // 王手の判定は重いので、使うNMP・LMRが働く深さでだけ計算する（それより浅いと常にfalse）。
+            bool inCheck = depth >= Math.Min(NullMoveMinDepth, LateMoveReductionMinDepth)
+                && MoveGenerator.IsInCheck(position, position.SideToMove);
+
             // Null Move Pruning: 一手パスしても（＝相手に手番をそのまま渡しても）なおbeta以上なら、
             // 自分が指せば当然beta以上のはずなので、全ての指し手を調べずに打ち切る。
             // 王手中にパスするのは不自然（王手放置になる）なので対象外。詰みが絡む窓では
@@ -114,7 +125,7 @@ namespace RobotTanuki
             if (allowNullMove
                 && depth >= NullMoveMinDepth
                 && !IsMateScore(beta)
-                && !MoveGenerator.IsInCheck(position, position.SideToMove))
+                && !inCheck)
             {
                 position.DoNullMove();
                 int nullMoveValue;
@@ -159,8 +170,22 @@ namespace RobotTanuki
                     // 超えてしまった場合だけ正しい値を得るために通常の窓で読み直す。
                     if (moveCount > 1)
                     {
+                        // Late Move Reductions: 後ろに並んだ静かな手は最善手の可能性が低いので浅く読み、alphaを超えたら読み直す。
+                        // 王手をかける手・回避する手は、浅く読むと詰みを見落としやすいため縮小しない。
+                        int reduction = depth >= LateMoveReductionMinDepth
+                            && moveCount >= LateMoveReductionMinMoveCount
+                            && !inCheck
+                            && move.PieceTo == Piece.NoPiece
+                            && !move.Promotion
+                            && !MoveGenerator.IsInCheck(position, position.SideToMove)
+                            ? 1 : 0;
                         ++nodes;
-                        childBestMove = Search(position, depth - 1, -alpha - 1, -alpha, ref nodes, cancellationToken);
+                        childBestMove = Search(position, depth - 1 - reduction, -alpha - 1, -alpha, ref nodes, cancellationToken);
+                        if (reduction > 0 && -childBestMove.Value > alpha)
+                        {
+                            ++nodes;
+                            childBestMove = Search(position, depth - 1, -alpha - 1, -alpha, ref nodes, cancellationToken);
+                        }
                     }
 
                     if (childBestMove == null || (alpha < -childBestMove.Value && -childBestMove.Value < beta))
