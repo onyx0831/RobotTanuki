@@ -328,6 +328,7 @@ namespace RobotTanuki
             }
 
             // 玉や大駒で安い駒を取ると値がマイナスになり、駒を取らない手より後ろに並んでしまうため玉の価値を足す。
+            // 静止探索の回避手のbreakは、駒を取る手が全て先に並ぶことを前提にしている。
             return Evaluator.GetPieceValue(Piece.BlackKing) + Evaluator.GetPieceValue(move.PieceTo) * 10 - Evaluator.GetPieceValue(move.PieceFrom);
         }
     }
