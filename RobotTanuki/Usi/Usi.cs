@@ -115,6 +115,9 @@ namespace RobotTanuki
                         break;
 
                     case "gameover":
+                        // ponder中に対局が終わっても探索が止まらず、次の対局まで残らないようにする。
+                        engine.Stop();
+                        engine.WaitForSearchToStop();
                         break;
 
                     case "go":

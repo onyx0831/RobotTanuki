@@ -35,6 +35,11 @@ out=$(run_usi $'usi\nsetoption name USI_Hash value 1\nisready\nposition startpos
 echo "$out" | grep -q "^option name USI_Hash type spin default 32 min 1 max 4096" || fail "USI_Hashの既定値・範囲が違う: $out"
 echo "$out" | grep -q "^bestmove" || fail "USI_Hashを変えた後にbestmoveが返ってこない: $out"
 
+echo "== gameoverでponderの探索を止める =="
+out=$(run_usi $'position startpos\ngo ponder\ngameover lose\nisready\nquit\n')
+first=$(echo "$out" | grep -E "^(bestmove|readyok)" | head -1)
+[[ "$first" == bestmove* ]] || fail "gameoverの後もponderの探索が続いている: $out"
+
 echo "== 初期局面の合法手数（30通り） =="
 out=$(run_usi $'position startpos\ngeneratemove\nquit\n')
 count=$(count_moves "$out")
