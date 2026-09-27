@@ -154,6 +154,61 @@ namespace RobotTanuki
             return move;
         }
 
+        /// <summary>
+        /// 16ビット整数に詰める。置換表に参照を持たせないため（本家RocketTanukiと同じ形式）。
+        /// </summary>
+        public ushort ToUshort()
+        {
+            // 0〜6ビット目: 移動先のマス、7〜13ビット目: 移動元のマス（打つ手なら駒の種類）、
+            // 14ビット目: 打つ手なら1、15ビット目: 成る手なら1
+            int to = FileTo + RankTo * Position.BoardSize;
+            int from = Drop ? (int)PieceFrom : FileFrom + RankFrom * Position.BoardSize;
+            int drop = Drop ? 1 : 0;
+            int promotion = Promotion ? 1 : 0;
+            return (ushort)(to | (from << 7) | (drop << 14) | (promotion << 15));
+        }
+
+        /// <summary>
+        /// ToUshortで詰めた指し手を戻す。駒と手番は詰めていないので、その指し手を指す局面から復元する。
+        /// </summary>
+        public static Move FromUshort(Position position, ushort move16)
+        {
+            // 特別な手は参照で比べられているため、同じインスタンスを返す。
+            if (move16 == Resign16)
+            {
+                return Resign;
+            }
+            if (move16 == Win16)
+            {
+                return Win;
+            }
+            if (move16 == None16)
+            {
+                return None;
+            }
+
+            int to = move16 & ((1 << 7) - 1);
+            int from = (move16 >> 7) & ((1 << 7) - 1);
+            bool drop = ((move16 >> 14) & 1) == 1;
+            bool promotion = ((move16 >> 15) & 1) == 1;
+            int fileTo = to % Position.BoardSize;
+            int rankTo = to / Position.BoardSize;
+            int fileFrom = drop ? -1 : from % Position.BoardSize;
+            int rankFrom = drop ? -1 : from / Position.BoardSize;
+            return new Move
+            {
+                FileFrom = fileFrom,
+                RankFrom = rankFrom,
+                PieceFrom = drop ? (Piece)from : position.Board[fileFrom, rankFrom],
+                FileTo = fileTo,
+                RankTo = rankTo,
+                PieceTo = position.Board[fileTo, rankTo],
+                Drop = drop,
+                Promotion = promotion,
+                SideToMove = position.SideToMove,
+            };
+        }
+
         public static readonly Move Resign = new Move
         {
             FileFrom = 2,
@@ -171,6 +226,11 @@ namespace RobotTanuki
             FileFrom = 4,
             FileTo = 4,
         };
+
+        // 特別な手は「同じマスからそのマスへ動く」値になり、実在する指し手と重ならない。
+        private static readonly ushort Resign16 = Resign.ToUshort();
+        private static readonly ushort Win16 = Win.ToUshort();
+        private static readonly ushort None16 = None.ToUshort();
 
         private static string[] RankToKanjiLetters = { "一", "二", "三", "四", "五", "六", "七", "八", "九" };
     }

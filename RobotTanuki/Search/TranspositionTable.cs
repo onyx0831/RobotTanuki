@@ -7,19 +7,23 @@ namespace RobotTanuki
     /// アルファベータ法では、打ち切りが起きたノードの評価値は真の値そのものではなく、
     /// 上限または下限としてしか分からないため、これを区別して記録する必要がある。
     /// </summary>
-    public enum TranspositionTableBound
+    public enum TranspositionTableBound : byte
     {
         Exact,
         LowerBound,
         UpperBound,
     }
 
+    /// <summary>
+    /// 参照を含む大きな配列はGCのたびに走査され、置換表を大きくするほど遅くなるため、
+    /// 指し手も整数に詰めて、参照を含まない16バイトの構造体にしている。
+    /// </summary>
     public struct TranspositionTableEntry
     {
         public ulong Hash;
-        public int Depth;
         public int Value;
-        public Move BestMove;
+        public ushort BestMove16;
+        public sbyte Depth;
         public TranspositionTableBound Bound;
     }
 
@@ -58,9 +62,9 @@ namespace RobotTanuki
             entries[Index(hash)] = new TranspositionTableEntry
             {
                 Hash = hash,
-                Depth = depth,
                 Value = value,
-                BestMove = bestMove,
+                BestMove16 = bestMove.ToUshort(),
+                Depth = (sbyte)depth,
                 Bound = bound,
             };
         }
