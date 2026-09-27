@@ -27,6 +27,12 @@ namespace RobotTanuki
         // パスした後に探索する深さの減らし幅。
         private const int NullMoveReduction = 2;
 
+        // Late Move Reductionsを試す最小の残り深さ。縮小後も静止探索に直行しない深さを残すため。
+        private const int LateMoveReductionMinDepth = 3;
+
+        // この手数目以降の手を縮小対象にする。それより前には置換表の手・駒を取る手が並ぶため。
+        private const int LateMoveReductionMinMoveCount = 4;
+
         public static bool IsMateScore(int value)
         {
             return Math.Abs(value) > MateThreshold;
@@ -103,6 +109,8 @@ namespace RobotTanuki
                 }
             }
 
+            bool inCheck = MoveGenerator.IsInCheck(position, position.SideToMove);
+
             // Null Move Pruning: 一手パスしても（＝相手に手番をそのまま渡しても）なおbeta以上なら、
             // 自分が指せば当然beta以上のはずなので、全ての指し手を調べずに打ち切る。
             // 王手中にパスするのは不自然（王手放置になる）なので対象外。詰みが絡む窓では
@@ -111,7 +119,7 @@ namespace RobotTanuki
             if (allowNullMove
                 && depth >= NullMoveMinDepth
                 && !IsMateScore(beta)
-                && !MoveGenerator.IsInCheck(position, position.SideToMove))
+                && !inCheck)
             {
                 position.DoNullMove();
                 int nullMoveValue;
@@ -156,8 +164,23 @@ namespace RobotTanuki
                     // 超えてしまった場合だけ正しい値を得るために通常の窓で読み直す。
                     if (moveCount > 1)
                     {
+                        // Late Move Reductions: オーダリングで後ろに回った静かな手は最善手である可能性が低いので、
+                        // まず浅く読み、それでもalphaを超えた場合だけ本来の深さで読み直す。
+                        // 王手をかける手・王手を回避する手は、浅く読むと詰みを見落としやすいため縮小しない。
+                        int reduction = depth >= LateMoveReductionMinDepth
+                            && moveCount >= LateMoveReductionMinMoveCount
+                            && !inCheck
+                            && move.PieceTo == Piece.NoPiece
+                            && !move.Promotion
+                            && !MoveGenerator.IsInCheck(position, position.SideToMove)
+                            ? 1 : 0;
                         ++nodes;
-                        childBestMove = Search(position, depth - 1, -alpha - 1, -alpha, ref nodes, cancellationToken);
+                        childBestMove = Search(position, depth - 1 - reduction, -alpha - 1, -alpha, ref nodes, cancellationToken);
+                        if (reduction > 0 && -childBestMove.Value > alpha)
+                        {
+                            ++nodes;
+                            childBestMove = Search(position, depth - 1, -alpha - 1, -alpha, ref nodes, cancellationToken);
+                        }
                     }
 
                     if (childBestMove == null || (alpha < -childBestMove.Value && -childBestMove.Value < beta))
