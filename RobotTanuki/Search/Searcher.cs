@@ -43,8 +43,9 @@ namespace RobotTanuki
         // 玉が味方に守られるだけで駒の安全度の評価が+450動くため、それを上回る値にする。
         private const int FutilityMarginPerDepth = 500;
 
-        // 千日手を探す範囲。遡るほど判定が重くなるため、ほとんどの千日手が収まる手数に限る。
-        private const int MaxRepetitionPly = 16;
+        // 千日手を探す範囲。対局の手順での4回目は最初の出現から3周分遡る必要があるが、遡るほど判定が重くなるため、
+        // 8手周期の千日手まで判定できる手数に限る。
+        private const int MaxRepetitionPly = 24;
 
         private const int DrawValue = 0;
 
@@ -76,7 +77,7 @@ namespace RobotTanuki
                 BestMove result;
                 try
                 {
-                    result = Search(position, depth, -Infinity, Infinity, ref nodes, tokenForThisDepth, isRoot: true);
+                    result = Search(position, depth, 0, -Infinity, Infinity, ref nodes, tokenForThisDepth);
                 }
                 catch (OperationCanceledException)
                 {
@@ -100,12 +101,13 @@ namespace RobotTanuki
         /// <summary>
         /// ネガマックス形式のアルファベータ法で探索する。
         /// </summary>
-        private static BestMove Search(Position position, int depth, int alpha, int beta, ref int nodes, CancellationToken cancellationToken, bool allowNullMove = true, bool isRoot = false)
+        /// <param name="ply">根からの手数</param>
+        private static BestMove Search(Position position, int depth, int ply, int alpha, int beta, ref int nodes, CancellationToken cancellationToken, bool allowNullMove = true)
         {
             // 千日手になった局面は読まずに規則どおりの結果にする。根の局面は指す手を決める必要があるので対象外。
-            if (!isRoot)
+            if (ply > 0)
             {
-                var repetition = position.GetRepetition(MaxRepetitionPly);
+                var repetition = position.GetRepetition(ply, MaxRepetitionPly);
                 if (repetition != Repetition.None)
                 {
                     int repetitionValue = repetition == Repetition.Win ? Infinity : repetition == Repetition.Lose ? -Infinity : DrawValue;
@@ -152,7 +154,7 @@ namespace RobotTanuki
                 int nullMoveValue;
                 try
                 {
-                    nullMoveValue = -Search(position, depth - 1 - NullMoveReduction, -beta, -beta + 1, ref nodes, cancellationToken, allowNullMove: false).Value;
+                    nullMoveValue = -Search(position, depth - 1 - NullMoveReduction, ply + 1, -beta, -beta + 1, ref nodes, cancellationToken, allowNullMove: false).Value;
                 }
                 finally
                 {
@@ -222,18 +224,18 @@ namespace RobotTanuki
                             && !position.IsInCheck()
                             ? 1 : 0;
                         ++nodes;
-                        childBestMove = Search(position, depth - 1 - reduction, -alpha - 1, -alpha, ref nodes, cancellationToken);
+                        childBestMove = Search(position, depth - 1 - reduction, ply + 1, -alpha - 1, -alpha, ref nodes, cancellationToken);
                         if (reduction > 0 && -childBestMove.Value > alpha)
                         {
                             ++nodes;
-                            childBestMove = Search(position, depth - 1, -alpha - 1, -alpha, ref nodes, cancellationToken);
+                            childBestMove = Search(position, depth - 1, ply + 1, -alpha - 1, -alpha, ref nodes, cancellationToken);
                         }
                     }
 
                     if (childBestMove == null || (alpha < -childBestMove.Value && -childBestMove.Value < beta))
                     {
                         ++nodes;
-                        childBestMove = Search(position, depth - 1, -beta, -alpha, ref nodes, cancellationToken);
+                        childBestMove = Search(position, depth - 1, ply + 1, -beta, -alpha, ref nodes, cancellationToken);
                     }
                 }
                 finally
