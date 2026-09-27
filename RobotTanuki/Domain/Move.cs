@@ -228,6 +228,7 @@ namespace RobotTanuki
         };
 
         // 特別な手は「同じマスからそのマスへ動く」値になり、実在する指し手と重ならない。
+        // 静的フィールドは書かれた順に初期化されるので、Resign・Win・Noneより後に宣言する必要がある。
         private static readonly ushort Resign16 = Resign.ToUshort();
         private static readonly ushort Win16 = Win.ToUshort();
         private static readonly ushort None16 = None.ToUshort();

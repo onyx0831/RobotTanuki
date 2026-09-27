@@ -60,8 +60,9 @@ namespace RobotTanuki
         /// <summary>置換表をmegabytesに収まる大きさで作り直す。</summary>
         public static void ResizeTable(int megabytes)
         {
-            // 古い置換表を参照したまま新しいものを確保すると、その間は両方がメモリに載るため、先に手放す。
+            // 古い置換表を参照したまま新しいものを確保すると、その間は両方がメモリに載るため、先に手放して回収しておく。
             table = new TranspositionTable(1);
+            GC.Collect();
             table = TranspositionTable.FromMegabytes(megabytes);
             HashMegabytes = megabytes;
         }

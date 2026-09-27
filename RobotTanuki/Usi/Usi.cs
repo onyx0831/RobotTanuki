@@ -56,7 +56,7 @@ namespace RobotTanuki
                         break;
 
                     case "isready":
-                        engine.Prepare();
+                        engine.Prepare(message => Console.WriteLine("info string " + message));
                         Console.WriteLine("readyok");
                         Console.Out.Flush();
                         break;

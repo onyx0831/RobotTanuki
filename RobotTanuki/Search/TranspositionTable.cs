@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
 namespace RobotTanuki
@@ -59,6 +60,8 @@ namespace RobotTanuki
 
         public void Store(ulong hash, int depth, int value, Move bestMove, TranspositionTableBound bound)
         {
+            // 最大深さを上げてsbyteに収まらなくなったとき、黙って負の深さにならないようにする。
+            Debug.Assert(depth <= sbyte.MaxValue);
             entries[Index(hash)] = new TranspositionTableEntry
             {
                 Hash = hash,
