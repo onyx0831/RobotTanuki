@@ -36,6 +36,13 @@ namespace RobotTanuki
         // 最初の数手（先頭の置換表の手など）は縮小しない。
         private const int LateMoveReductionMinMoveCount = 4;
 
+        // Futility Pruningを試す最大の残り深さ。深いほど静かな手でも評価値が大きく動き得るため、浅い局面に限る。
+        private const int FutilityMaxDepth = 2;
+
+        // 静かな手1手で評価値がこれ以上は動かないとみなす余裕分（残り深さ1あたり）。
+        // 玉が味方に守られるだけで駒の安全度の評価が+450動くため、それを上回る値にする。
+        private const int FutilityMarginPerDepth = 500;
+
         public static bool IsMateScore(int value)
         {
             return Math.Abs(value) > MateThreshold;
@@ -113,9 +120,7 @@ namespace RobotTanuki
                 }
             }
 
-            // 王手の判定は重いので、使うNMP・LMRが働く深さでだけ計算する（それより浅いと常にfalse）。
-            bool inCheck = depth >= Math.Min(NullMoveMinDepth, LateMoveReductionMinDepth)
-                && MoveGenerator.IsInCheck(position, position.SideToMove);
+            bool inCheck = MoveGenerator.IsInCheck(position, position.SideToMove);
 
             // Null Move Pruning: 一手パスしても（＝相手に手番をそのまま渡しても）なおbeta以上なら、
             // 自分が指せば当然beta以上のはずなので、全ての指し手を調べずに打ち切る。
@@ -144,6 +149,10 @@ namespace RobotTanuki
                 }
             }
 
+            // Futility Pruning: 評価値に余裕分を足してもalphaに届かないなら、静かな手ではalphaを超えないとみなして読まない。
+            bool canFutilityPrune = depth <= FutilityMaxDepth && !inCheck;
+            int? futilityValue = null;
+
             int bestValue = -Infinity;
             Move bestMove = Move.Resign;
             BestMove? bestChildMove = null;
@@ -153,6 +162,23 @@ namespace RobotTanuki
             var moves = MoveGenerator.Generate(position).OrderByDescending(move => ScoreForOrdering(move, ttMove));
             foreach (var move in moves)
             {
+                // 重い合法性チェックより前に判定する。最初の1手は必ず読み、詰みと誤判定しないようにする。
+                if (canFutilityPrune
+                    && moveCount > 0
+                    && move.PieceTo == Piece.NoPiece
+                    && !move.Promotion
+                    && !IsMateScore(alpha))
+                {
+                    // 1手目でbeta cutになるノードが多いので、評価値は枝刈りの候補が来てから計算する。
+                    futilityValue ??= Evaluator.Evaluate(position) + FutilityMarginPerDepth * depth;
+                    if (futilityValue <= alpha && !MoveGenerator.GivesCheck(position, move))
+                    {
+                        // 読まなかった手の分として、返す上限値を低く見積もりすぎないようにする。
+                        bestValue = Math.Max(bestValue, futilityValue.Value);
+                        continue;
+                    }
+                }
+
                 if (!MoveGenerator.IsLegal(position, move))
                 {
                     continue;

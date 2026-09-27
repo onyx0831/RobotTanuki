@@ -245,6 +245,17 @@ namespace RobotTanuki
         }
 
         /// <summary>
+        /// 指した結果、相手の玉に王手がかかるかを判定する。
+        /// </summary>
+        public static bool GivesCheck(Position position, Move move)
+        {
+            position.DoMove(move);
+            bool givesCheck = IsInCheck(position, position.SideToMove);
+            position.UndoMove(move);
+            return givesCheck;
+        }
+
+        /// <summary>
         /// 指定した色の玉が、手番に関係なく敵の利きにさらされているか（王手されているか）を判定する。
         /// </summary>
         public static bool IsInCheck(Position position, Color color)
