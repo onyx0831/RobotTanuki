@@ -30,6 +30,17 @@ namespace RobotTanuki
             options[name] = value;
         }
 
+        /// <summary>
+        /// 置換表の大きさ（メガバイト）を設定する。
+        /// </summary>
+        public void SetHashSize(int megabytes)
+        {
+            // バックグラウンドの探索が置換表を使っている間に作り直さないよう、先に探索の終了を待つ。
+            Stop();
+            WaitForSearchToStop();
+            Searcher.ResizeTable(Math.Clamp(megabytes, 1, Searcher.MaxHashMegabytes));
+        }
+
         public void NewGame()
         {
             Stop();

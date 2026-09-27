@@ -30,6 +30,11 @@ echo "$out" | grep -q "^usiok" || fail "usiokが返ってこない"
 echo "$out" | grep -q "^readyok" || fail "readyokが返ってこない"
 echo "$out" | grep -q "^bestmove 7g7f" || fail "初期局面のbestmoveが7g7fではない: $out"
 
+echo "== USI_Hash（既定値を知らせ、置換表の大きさを変えても探索できる） =="
+out=$(run_usi $'usi\nsetoption name USI_Hash value 1\nisready\nposition startpos\ngo\nquit\n')
+echo "$out" | grep -q "^option name USI_Hash type spin default 32 min 1 max 4096" || fail "USI_Hashの既定値・範囲が違う: $out"
+echo "$out" | grep -q "^bestmove" || fail "USI_Hashを変えた後にbestmoveが返ってこない: $out"
+
 echo "== 初期局面の合法手数（30通り） =="
 out=$(run_usi $'position startpos\ngeneratemove\nquit\n')
 count=$(count_moves "$out")

@@ -10,7 +10,11 @@ namespace RobotTanuki
 {
     public class Searcher
     {
-        private static readonly TranspositionTable table = new TranspositionTable(1 << 20);
+        // USI_Hashの既定値・上限（メガバイト）。上限は、要素数がintの範囲に十分収まり、一般的なPCで使える大きさにしている。
+        public const int DefaultHashMegabytes = 32;
+        public const int MaxHashMegabytes = 4096;
+
+        private static TranspositionTable table = TranspositionTable.FromMegabytes(DefaultHashMegabytes);
 
         // intの範囲で安全に符号反転できる大きさ。詰みが今起きた瞬間の値としても使う。
         private const int Infinity = 1_000_000_000;
@@ -48,6 +52,12 @@ namespace RobotTanuki
         private const int MaxRepetitionPly = 24;
 
         private const int DrawValue = 0;
+
+        /// <summary>置換表をmegabytesに収まる大きさで作り直す。</summary>
+        public static void ResizeTable(int megabytes)
+        {
+            table = TranspositionTable.FromMegabytes(megabytes);
+        }
 
         public static bool IsMateScore(int value)
         {
