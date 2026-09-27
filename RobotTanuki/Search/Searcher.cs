@@ -21,6 +21,9 @@ namespace RobotTanuki
         // 静止探索の延長上限。取り合い・王手が続く限り延長するが、際限なく続かないための安全弁。
         private const int QuiescenceMaxPly = 32;
 
+        // 静止探索で王手を回避する手のうち、駒を取らない手（玉の移動・合駒）を読む上限。
+        private const int QuiescenceMaxQuietEvasions = 2;
+
         // Null Move Pruningを試す最小の残り深さ。浅すぎる場所で使うと縮小後の深さが0未満になり得るため。
         private const int NullMoveMinDepth = 3;
 
@@ -235,11 +238,26 @@ namespace RobotTanuki
             var moves = MoveGenerator.Generate(position)
                 .Where(move => inCheck || move.PieceTo != Piece.NoPiece || move.Promotion)
                 .OrderByDescending(move => ScoreForOrdering(move, null));
+            int quietEvasionCount = 0;
             foreach (var move in moves)
             {
+                // 「合駒→それを取りながら王手→また合駒」が持ち駒の数だけ続くと静止探索が爆発するため、
+                // 詰まされない回避手が1つ見つかった後は、駒を取らない回避手を上限までしか読まない。
+                // 玉が駒を取る手はオーダリングで最後に回るため、breakではなくcontinueで読み飛ばす。
+                bool isQuietEvasion = inCheck && move.PieceTo == Piece.NoPiece;
+                if (isQuietEvasion && quietEvasionCount >= QuiescenceMaxQuietEvasions && bestValue > -MateThreshold)
+                {
+                    continue;
+                }
+
                 if (!MoveGenerator.IsLegal(position, move))
                 {
                     continue;
+                }
+
+                if (isQuietEvasion)
+                {
+                    ++quietEvasionCount;
                 }
 
                 cancellationToken.ThrowIfCancellationRequested();
