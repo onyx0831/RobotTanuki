@@ -202,7 +202,7 @@ namespace RobotTanuki
         /// <summary>
         /// 静止探索。駒を取り合っている最中に探索を打ち切ると、駒を取られる直前で評価してしまう
         /// 「地平線効果」が起きるため、取り合いが落ち着くまで（駒を取る手が尽きるまで）延長して読む。
-        /// 王手されている場合はstand pat（今の評価値をそのまま採用する）をせず、合法な応手を全て読む。
+        /// 王手されている場合はstand pat（今の評価値をそのまま採用する）をせず、回避手を読む。
         /// </summary>
         private static BestMove QuiescenceSearch(Position position, int alpha, int beta, int ply, ref int nodes, CancellationToken cancellationToken)
         {
@@ -233,7 +233,7 @@ namespace RobotTanuki
             Move bestMove = Move.Resign;
             BestMove? bestChildMove = null;
 
-            // 王手されていなければ「駒を取る手」「成る手」だけ、王手されていれば全ての合法手（回避手）を読む。
+            // 王手されていなければ「駒を取る手」「成る手」だけ、王手されていれば回避手を読む。
             // 成る手も対象にすることで、成り捨てや、成った直後に取り返される手を静止探索で検知できるようにする。
             var moves = MoveGenerator.Generate(position)
                 .Where(move => inCheck || move.PieceTo != Piece.NoPiece || move.Promotion)
@@ -241,10 +241,12 @@ namespace RobotTanuki
             int quietEvasionCount = 0;
             foreach (var move in moves)
             {
-                // 「合駒→それを取りながら王手→また合駒」が持ち駒の数だけ続くと静止探索が爆発するため、
+                // 「王手→玉の移動や合駒→駒を取りながら再び王手→…」の連鎖で静止探索が爆発するため、
                 // 詰まされない回避手が1つ見つかった後は、駒を取らない回避手を上限までしか読まない。
+                // 静止探索に入った直後の王手は、通常探索に王手延長がないため、受けを削ると無理な王手を
+                // 過大評価してしまうので対象外にする（爆発は静止探索の2手目以降で起きるので効果は変わらない）。
                 // 玉が駒を取る手はオーダリングで最後に回るため、breakではなくcontinueで読み飛ばす。
-                bool isQuietEvasion = inCheck && move.PieceTo == Piece.NoPiece;
+                bool isQuietEvasion = inCheck && move.PieceTo == Piece.NoPiece && ply < QuiescenceMaxPly;
                 if (isQuietEvasion && quietEvasionCount >= QuiescenceMaxQuietEvasions && bestValue > -MateThreshold)
                 {
                     continue;
