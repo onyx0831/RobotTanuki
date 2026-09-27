@@ -133,6 +133,7 @@ namespace RobotTanuki
             int bestValue = -Infinity;
             Move bestMove = Move.Resign;
             BestMove? bestChildMove = null;
+            int moveCount = 0;
             // GenerateLegal()後に並べ替えると遅延評価が効かず、枝刈りで省けるはずの
             // 合法性チェックまで全手分先に実行してしまうため、擬似合法手の段階で並べ替える。
             var moves = MoveGenerator.Generate(position).OrderByDescending(move => ScoreForOrdering(move, ttMove));
@@ -146,11 +147,27 @@ namespace RobotTanuki
                 cancellationToken.ThrowIfCancellationRequested();
 
                 ++nodes;
+                ++moveCount;
                 BestMove childBestMove;
                 position.DoMove(move);
                 try
                 {
-                    childBestMove = Search(position, depth - 1, -beta, -alpha, ref nodes, cancellationToken);
+                    if (moveCount == 1)
+                    {
+                        childBestMove = Search(position, depth - 1, -beta, -alpha, ref nodes, cancellationToken);
+                    }
+                    else
+                    {
+                        // Principal Variation Search: オーダリングが良ければ最初の手が最善のはずなので、
+                        // 2手目以降は「alphaを超えないこと」だけをnull windowで安く確かめ、
+                        // 超えてしまった場合だけ正しい値を得るために通常の窓で読み直す。
+                        childBestMove = Search(position, depth - 1, -alpha - 1, -alpha, ref nodes, cancellationToken);
+                        int nullWindowValue = -childBestMove.Value;
+                        if (alpha < nullWindowValue && nullWindowValue < beta)
+                        {
+                            childBestMove = Search(position, depth - 1, -beta, -alpha, ref nodes, cancellationToken);
+                        }
+                    }
                 }
                 finally
                 {
