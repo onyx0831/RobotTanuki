@@ -14,6 +14,7 @@ RobotTanuki/
   Domain/       … 将棋のルールそのもの（盤面・駒・指し手生成）
   Evaluation/   … 局面の評価
   Search/       … 探索
+  scripts/      … 動作確認用のスクリプト（回帰確認・自己対局）
 ```
 
 依存の向き（循環なし）:
@@ -52,14 +53,19 @@ Program → Usi → Engine → Search → Evaluation → Domain
 ## デバッグする
 - Windowsの場合はbuild/exeファイルを開く
 - Macの場合はShogiHomeなどのGUIにbuild/RobotTanuki（拡張子なし）を思考エンジンとして登録する
+- USIコマンドを直接打って確かめる場合は、ターミナルで`dotnet run`（またはpublishした`build/RobotTanuki`）を起動する
 
 初期局面のセット
 - プロンプト上で「position startpos」または「position sfen lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1」を入力
 - 「d」を入力
 - 「generatemove」で有効な指し手を示す
   （最多合法手局面：「position sfen 8R/kSS1S1K2/4B4/9/9/9/9/9/3L1L1L1 b RBGSNLP3g3n17p 1」）
+- 「eval」で今の局面の評価値（手番側から見た値）を示す
+- 「hash」で今の局面のZobristハッシュを示す
 
 ## 動作確認する
+コマンドは`RobotTanuki/`ディレクトリで実行する。
+
 - 探索・指し手生成まわりを変更したら、`./scripts/verify.sh` を実行して既知の局面での挙動が壊れていないことを確認する（ビルド・整形チェック・合法手数・bestmoveのチェックをまとめて行う）
 - 枝刈りなど探索結果が変わる変更では、`scripts/selfplay/`の自己対局で変更前後のエンジンを対局させて強さを比べる。Docker上で、指定した2つのブランチ（コミット済みの内容）をビルドして対局させる
   ```bash
