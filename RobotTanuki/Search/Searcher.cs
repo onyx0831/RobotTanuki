@@ -33,6 +33,12 @@ namespace RobotTanuki
         // この手数目以降の手を縮小対象にする。それより前には置換表の手・駒を取る手が並ぶため。
         private const int LateMoveReductionMinMoveCount = 4;
 
+        // Futility Pruningを試す最大の残り深さ。深いほど静かな手でも評価値が大きく動き得るため、浅い局面に限る。
+        private const int FutilityMaxDepth = 2;
+
+        // 静かな手1手で評価値がこれ以上は動かないとみなす余裕分（残り深さ1あたり）。
+        private const int FutilityMarginPerDepth = 300;
+
         public static bool IsMateScore(int value)
         {
             return Math.Abs(value) > MateThreshold;
@@ -138,6 +144,11 @@ namespace RobotTanuki
                 }
             }
 
+            // Futility Pruning: 今の評価値に余裕分を足してもalphaに届かないなら、駒を取らない静かな手を
+            // 指してもalphaを超えることはまずないので読まない。
+            bool canFutilityPrune = depth <= FutilityMaxDepth && !inCheck && !IsMateScore(alpha);
+            int futilityValue = canFutilityPrune ? Evaluator.Evaluate(position) + FutilityMarginPerDepth * depth : 0;
+
             int bestValue = -Infinity;
             Move bestMove = Move.Resign;
             BestMove? bestChildMove = null;
@@ -147,6 +158,20 @@ namespace RobotTanuki
             var moves = MoveGenerator.Generate(position).OrderByDescending(move => ScoreForOrdering(move, ttMove));
             foreach (var move in moves)
             {
+                // 合法性チェック（相手の全ての手を生成するため重い）より前に判定して、そのコストも省く。
+                // 最初の1手は必ず読み、指せる手があるのに詰みと判定されないようにする。
+                if (canFutilityPrune
+                    && futilityValue <= alpha
+                    && moveCount > 0
+                    && move.PieceTo == Piece.NoPiece
+                    && !move.Promotion
+                    && !MoveGenerator.GivesCheck(position, move))
+                {
+                    // 読まなかった手の値はfutilityValue以下とみなし、fail-softで返す上限値を低く見積もりすぎないようにする。
+                    bestValue = Math.Max(bestValue, futilityValue);
+                    continue;
+                }
+
                 if (!MoveGenerator.IsLegal(position, move))
                 {
                     continue;
