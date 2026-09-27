@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 namespace RobotTanuki
 {
     /// <summary>
@@ -29,6 +31,20 @@ namespace RobotTanuki
         public TranspositionTable(int entryCount)
         {
             entries = new TranspositionTableEntry[entryCount];
+        }
+
+        /// <summary>
+        /// 指定したメガバイト数に収まる、最も大きい2のべき乗の要素数でテーブルを作る。
+        /// </summary>
+        public static TranspositionTable FromMegabytes(int megabytes)
+        {
+            long maxEntryCount = (long)megabytes * 1024 * 1024 / Unsafe.SizeOf<TranspositionTableEntry>();
+            long entryCount = 1;
+            while (entryCount * 2 <= maxEntryCount)
+            {
+                entryCount *= 2;
+            }
+            return new TranspositionTable((int)entryCount);
         }
 
         public bool TryGet(ulong hash, out TranspositionTableEntry entry)

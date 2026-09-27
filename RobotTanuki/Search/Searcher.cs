@@ -10,7 +10,16 @@ namespace RobotTanuki
 {
     public class Searcher
     {
-        private static readonly TranspositionTable table = new TranspositionTable(1 << 20);
+        // USI_Hashの既定値・範囲（メガバイト）。置換表の各要素が指し手のオブジェクトを参照していて、
+        // 大きくするほどGCの走査が増えて遅くなるため、指し手を整数で持つようにするまで上限は既定値と同じにしている。
+        public const int DefaultHashMegabytes = 32;
+        public const int MinHashMegabytes = 1;
+        public const int MaxHashMegabytes = 32;
+
+        private static TranspositionTable table = TranspositionTable.FromMegabytes(DefaultHashMegabytes);
+
+        /// <summary>今の置換表を作ったときに指定された大きさ（メガバイト）。</summary>
+        public static int HashMegabytes { get; private set; } = DefaultHashMegabytes;
 
         // intの範囲で安全に符号反転できる大きさ。詰みが今起きた瞬間の値としても使う。
         private const int Infinity = 1_000_000_000;
@@ -48,6 +57,15 @@ namespace RobotTanuki
         private const int MaxRepetitionPly = 24;
 
         private const int DrawValue = 0;
+
+        /// <summary>置換表をmegabytesに収まる大きさで作り直す。</summary>
+        public static void ResizeTable(int megabytes)
+        {
+            // 古い置換表を参照したまま新しいものを確保すると、その間は両方がメモリに載るため、先に手放す。
+            table = new TranspositionTable(1);
+            table = TranspositionTable.FromMegabytes(megabytes);
+            HashMegabytes = megabytes;
+        }
 
         public static bool IsMateScore(int value)
         {

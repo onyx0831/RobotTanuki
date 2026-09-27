@@ -24,10 +24,35 @@ namespace RobotTanuki
         private Task? searchTask;
         private GoOptions? currentGoOptions;
         private Color searchSideToMove;
+        private int hashMegabytes = Searcher.DefaultHashMegabytes;
 
         public void SetOption(string name, string value)
         {
             options[name] = value;
+        }
+
+        /// <summary>
+        /// 置換表の大きさ（メガバイト）を設定する。実際に作り直すのはPrepareのとき。
+        /// </summary>
+        public void SetHashSize(int megabytes)
+        {
+            hashMegabytes = Math.Clamp(megabytes, Searcher.MinHashMegabytes, Searcher.MaxHashMegabytes);
+        }
+
+        /// <summary>
+        /// 探索の前の重い準備（置換表の確保）をする。大きさが変わっていなければ何もしない。
+        /// </summary>
+        public void Prepare()
+        {
+            if (hashMegabytes == Searcher.HashMegabytes)
+            {
+                return;
+            }
+
+            // バックグラウンドの探索が置換表を使っている間に作り直さないよう、先に探索の終了を待つ。
+            Stop();
+            WaitForSearchToStop();
+            Searcher.ResizeTable(hashMegabytes);
         }
 
         public void NewGame()
