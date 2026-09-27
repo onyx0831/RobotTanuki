@@ -37,8 +37,9 @@ echo "$out" | grep -q "^bestmove" || fail "USI_Hashを変えた後にbestmoveが
 
 echo "== gameoverでponderの探索を止める =="
 out=$(run_usi $'position startpos\ngo ponder\ngameover lose\nisready\nquit\n')
-first=$(echo "$out" | grep -E "^(bestmove|readyok)" | head -1)
-[[ "$first" == bestmove* ]] || fail "gameoverの後もponderの探索が続いている: $out"
+echo "$out" | grep -q "^readyok" || fail "readyokが返ってこない: $out"
+bestmove_after_ready=$(echo "$out" | sed -n '/^readyok/,$p' | grep -c "^bestmove" || true)
+[ "$bestmove_after_ready" = "0" ] || fail "gameoverの後もponderの探索が続いている: $out"
 
 echo "== 初期局面の合法手数（30通り） =="
 out=$(run_usi $'position startpos\ngeneratemove\nquit\n')
