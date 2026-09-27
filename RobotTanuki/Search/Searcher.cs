@@ -149,7 +149,10 @@ namespace RobotTanuki
 
             // Futility Pruning: 今の評価値に余裕分を足してもalphaに届かないなら、駒を取らない静かな手を
             // 指してもalphaを超えることはまずないので読まない。
-            bool canFutilityPrune = depth <= FutilityMaxDepth && !inCheck && !IsMateScore(alpha);
+            // 浅い深さではinCheckを計算していないので、ここで判定する。
+            bool canFutilityPrune = depth <= FutilityMaxDepth
+                && !IsMateScore(alpha)
+                && !MoveGenerator.IsInCheck(position, position.SideToMove);
             int futilityValue = canFutilityPrune ? Evaluator.Evaluate(position) + FutilityMarginPerDepth * depth : 0;
 
             int bestValue = -Infinity;
