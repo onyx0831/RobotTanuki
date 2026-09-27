@@ -141,17 +141,17 @@ namespace RobotTanuki
 
             ulong hash = position.Hash;
             int originalAlpha = alpha;
-            Move? ttMove = null;
+            ushort? ttMove16 = null;
             if (table.TryGet(hash, out var ttEntry))
             {
-                ttMove = Move.FromUshort(position, ttEntry.BestMove16);
+                ttMove16 = ttEntry.BestMove16;
                 if (ttEntry.Depth >= depth)
                 {
                     if (ttEntry.Bound == TranspositionTableBound.Exact
                         || (ttEntry.Bound == TranspositionTableBound.LowerBound && ttEntry.Value >= beta)
                         || (ttEntry.Bound == TranspositionTableBound.UpperBound && ttEntry.Value <= alpha))
                     {
-                        return new BestMove { Move = ttMove, Value = ttEntry.Value };
+                        return new BestMove { Move = Move.FromUshort(position, ttEntry.BestMove16), Value = ttEntry.Value };
                     }
                 }
             }
@@ -195,7 +195,7 @@ namespace RobotTanuki
             int moveCount = 0;
             // GenerateLegal()後に並べ替えると遅延評価が効かず、枝刈りで省けるはずの
             // 合法性チェックまで全手分先に実行してしまうため、擬似合法手の段階で並べ替える。
-            var moves = MoveGenerator.Generate(position).OrderByDescending(move => ScoreForOrdering(move, ttMove));
+            var moves = MoveGenerator.Generate(position).OrderByDescending(move => ScoreForOrdering(move, ttMove16));
             foreach (var move in moves)
             {
                 // 重い合法性チェックより前に判定する。最初の1手は必ず読み、詰みと誤判定しないようにする。
@@ -337,10 +337,10 @@ namespace RobotTanuki
             // 王手されていなければ「駒を取る手」「成る手」だけ、王手されていれば回避手を読む。
             // 成る手も対象にすることで、成り捨てや、成った直後に取り返される手を静止探索で検知できるようにする。
             // 通常探索が置換表に残した最善手があれば先に読み、回避手の枠に良い手が入りやすくする。
-            Move? ttMove = table.TryGet(position.Hash, out var ttEntry) ? Move.FromUshort(position, ttEntry.BestMove16) : null;
+            ushort? ttMove16 = table.TryGet(position.Hash, out var ttEntry) ? ttEntry.BestMove16 : null;
             var moves = MoveGenerator.Generate(position)
                 .Where(move => inCheck || move.PieceTo != Piece.NoPiece || move.Promotion)
-                .OrderByDescending(move => ScoreForOrdering(move, ttMove));
+                .OrderByDescending(move => ScoreForOrdering(move, ttMove16));
             int quietEvasionCount = 0;
             foreach (var move in moves)
             {
@@ -416,9 +416,10 @@ namespace RobotTanuki
         }
 
         /// <summary>指し手オーダリング用のスコア（置換表の手を最優先、次にMVV-LVA）。</summary>
-        private static int ScoreForOrdering(Move move, Move? ttMove)
+        /// <param name="ttMove16">置換表の手。当たるたびにMoveを確保しないよう、詰めたまま比べる。</param>
+        private static int ScoreForOrdering(Move move, ushort? ttMove16)
         {
-            if (ttMove != null && move.Equals(ttMove))
+            if (move.ToUshort() == ttMove16)
             {
                 return int.MaxValue;
             }
