@@ -22,11 +22,10 @@ echo "== build =="
 dotnet build
 
 echo "== dotnet format チェック =="
-dotnet format --verify-no-changes
-dotnet format ../RobotTanuki.Tests --verify-no-changes
+dotnet format ../RobotTanuki.sln --verify-no-changes
 
 echo "== ユニットテスト =="
-dotnet test ../RobotTanuki.Tests
+dotnet test ../RobotTanuki.sln
 
 echo "== 初期局面: usi/isready/go =="
 out=$(run_usi $'usi\nisready\nposition startpos\ngo\nquit\n')
