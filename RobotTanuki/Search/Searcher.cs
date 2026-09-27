@@ -243,11 +243,9 @@ namespace RobotTanuki
             int quietEvasionCount = 0;
             foreach (var move in moves)
             {
-                // 「王手→玉の移動や合駒→駒を取りながら再び王手→…」の連鎖で静止探索が爆発するため、
-                // 詰まされない回避手が1つ見つかった後は、駒を取らない回避手を上限までしか読まない。
-                // 静止探索に入った直後の王手は、通常探索に王手延長がないため、受けを削ると無理な王手を
-                // 過大評価してしまうので対象外にする（爆発は静止探索の2手目以降で起きるので効果は変わらない）。
-                // 駒を取る手は全て駒を取らない手より前に並ぶので、以降の手も全て駒を取らない回避手になる。
+                // 「王手→逃げ・合駒→取りながら王手」の連鎖で爆発するため、駒を取らない回避手は上限までにする。
+                // 詰まされない手が見つかるまで制限しないのは、詰みと誤判定しないため。
+                // 入口の王手を除くのは、受けを削ると無理な王手を過大評価するため。
                 bool isQuietEvasion = inCheck && move.PieceTo == Piece.NoPiece && ply < QuiescenceMaxPly;
                 if (isQuietEvasion && quietEvasionCount >= QuiescenceMaxQuietEvasions && bestValue > -MateThreshold)
                 {
@@ -329,8 +327,7 @@ namespace RobotTanuki
                 return 0;
             }
 
-            // 玉や大駒で安い駒を取るとMVV-LVAの値がマイナスになり、駒を取らない手より後ろに並んでしまうため、
-            // 最も価値の大きい駒（玉）の価値を足して、駒を取る手が常に先に並ぶようにする。
+            // 玉や大駒で安い駒を取ると値がマイナスになり、駒を取らない手より後ろに並んでしまうため玉の価値を足す。
             return Evaluator.GetPieceValue(Piece.BlackKing) + Evaluator.GetPieceValue(move.PieceTo) * 10 - Evaluator.GetPieceValue(move.PieceFrom);
         }
     }
