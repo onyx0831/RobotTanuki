@@ -1,10 +1,6 @@
-# /// script
-# requires-python = ">=3.9"
-# dependencies = ["python-shogi"]
-# ///
-"""2つのUSIエンジンを対局させて勝率を測る。
+"""2つのUSIエンジンを対局させて勝率を測る。通常はDockerコンテナ内でrun.shから呼ばれる。
 
-usage: uv run scripts/selfplay.py <engineA> <engineB> [--games N] [--byoyomi MS] [--workers W] [--seed S]
+usage: selfplay.py <engineA> <engineB> [--games N] [--byoyomi MS] [--workers W] [--seed S]
 """
 import argparse
 import math
@@ -94,7 +90,7 @@ def main():
     parser.add_argument("engine_b")
     parser.add_argument("--games", type=int, default=2)
     parser.add_argument("--byoyomi", type=int, default=1000)
-    # 高性能コア数（このMacでは4）を超えると、省電力コアに回った側だけ読みが浅くなり不公平になる。
+    # CPUのコア数を超えて同時に対局させると、思考中のエンジン同士でCPUを取り合い、読みが浅くなる。
     parser.add_argument("--workers", type=int, default=4)
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--opening-plies", type=int, default=6)

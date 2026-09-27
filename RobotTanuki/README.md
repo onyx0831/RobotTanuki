@@ -61,12 +61,9 @@ Program → Usi → Engine → Search → Evaluation → Domain
 
 ## 動作確認する
 - 探索・指し手生成まわりを変更したら、`./scripts/verify.sh` を実行して既知の局面での挙動が壊れていないことを確認する（ビルド・整形チェック・合法手数・bestmoveのチェックをまとめて行う）
-- 枝刈りなど探索結果が変わる変更では、`scripts/selfplay.py` で変更前後のエンジンを対局させて強さを比べる。[uv](https://docs.astral.sh/uv/)が必要（将棋のルール判定に使うpython-shogiはuvが自動で入れる）
+- 枝刈りなど探索結果が変わる変更では、`scripts/selfplay/`の自己対局で変更前後のエンジンを対局させて強さを比べる。Docker上で、指定した2つのブランチ（コミット済みの内容）をビルドして対局させる
   ```bash
-  # 変更前（mainなど）をチェックアウトした状態で
-  dotnet build -c Release -o bin/selfplay/base
-  # 変更後をチェックアウトした状態で
-  dotnet build -c Release -o bin/selfplay/new
-  uv run scripts/selfplay.py bin/selfplay/new/RobotTanuki bin/selfplay/base/RobotTanuki --games 2 --byoyomi 1000
+  docker build -t robottanuki-selfplay scripts/selfplay
+  docker run --rm -v "$(git rev-parse --show-toplevel)":/repo:ro robottanuki-selfplay <新しいブランチ> <基準のブランチ> --games 2 --byoyomi 1000
   ```
   ランダムな6手の開始局面から先後を入れ替えて指し、勝敗と棋譜（`position startpos moves ...`形式）を出力する
