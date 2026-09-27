@@ -28,6 +28,22 @@ namespace RobotTanuki
         /// <summary>局面を一意に識別するZobristハッシュ</summary>
         public ulong Hash { get; private set; }
 
+        private struct HistoryEntry
+        {
+            public ulong Hash;
+            public bool? InCheck;
+            public bool IsAfterNullMove;
+        }
+
+        /// <summary>開始局面から今の局面までの各局面。千日手の判定に使う。</summary>
+        private readonly List<HistoryEntry> history = new List<HistoryEntry>();
+
+        public Position()
+        {
+            // Setより前にIsInCheckなどが呼ばれても、今の局面の履歴がある状態にしておく。
+            history.Add(new HistoryEntry { Hash = Hash });
+        }
+
         /// <summary>
         /// 与えられた指し手に従い、局面を更新する。
         /// </summary>
@@ -70,6 +86,7 @@ namespace RobotTanuki
             Hash ^= Zobrist.BlackToMove;
 
             ++Play;
+            history.Add(new HistoryEntry { Hash = Hash });
         }
 
         /// <summary>
@@ -80,6 +97,7 @@ namespace RobotTanuki
         {
             Debug.Assert(SideToMove != move.SideToMove);
 
+            history.RemoveAt(history.Count - 1);
             --Play;
             SideToMove = SideToMove.ToOpponent();
             Hash ^= Zobrist.BlackToMove;
@@ -114,6 +132,7 @@ namespace RobotTanuki
         {
             SideToMove = SideToMove.ToOpponent();
             Hash ^= Zobrist.BlackToMove;
+            history.Add(new HistoryEntry { Hash = Hash, IsAfterNullMove = true });
         }
 
         /// <summary>
@@ -121,6 +140,7 @@ namespace RobotTanuki
         /// </summary>
         public void UndoNullMove()
         {
+            history.RemoveAt(history.Count - 1);
             SideToMove = SideToMove.ToOpponent();
             Hash ^= Zobrist.BlackToMove;
         }
@@ -244,6 +264,94 @@ namespace RobotTanuki
             Play = int.Parse(sfen.Substring(index));
 
             RecomputeHash();
+            history.Clear();
+            history.Add(new HistoryEntry { Hash = Hash });
+        }
+
+        /// <summary>
+        /// 手番側の玉が王手されているか。連続王手の千日手の判定で過去の局面の結果も使うため、局面ごとに記録しておく。
+        /// </summary>
+        public bool IsInCheck()
+        {
+            var entry = history[history.Count - 1];
+            if (entry.InCheck == null)
+            {
+                entry.InCheck = MoveGenerator.IsInCheck(this, SideToMove);
+                history[history.Count - 1] = entry;
+            }
+            return entry.InCheck.Value;
+        }
+
+        /// <summary>
+        /// 今の局面が千日手になっていれば、手番側から見た結果を返す。連続王手の千日手は、王手をかけ続けた側の負けとする。
+        /// searchPlyは探索の根からの手数、maxPlyは遡る最大の手数。
+        /// </summary>
+        public Repetition GetRepetition(int searchPly, int maxPly)
+        {
+            int current = history.Count - 1;
+            int occurrences = 0;
+            for (int ply = 2; ply <= maxPly && ply <= current; ply += 2)
+            {
+                // パスを挟んだ局面は実際の手順ではつながらないので、それより前とは比べない。
+                if (history[current - ply + 2].IsAfterNullMove || history[current - ply + 1].IsAfterNullMove)
+                {
+                    break;
+                }
+
+                if (history[current - ply].Hash != Hash)
+                {
+                    continue;
+                }
+
+                // 1回目が探索の中なら、そこで別の手を選ぶことも読み済みなので2回目で千日手とする。
+                // 対局の手順の中なら、その時点の別の手は読んでいないので、ルールどおり4回目で千日手とする。
+                ++occurrences;
+                if (ply <= searchPly || occurrences == 3)
+                {
+                    return JudgeRepetition(ply);
+                }
+            }
+
+            return Repetition.None;
+        }
+
+        /// <summary>
+        /// span手前から今の局面までの手順で、どちらかが王手をかけ続けていたかによって千日手の結果を決める。
+        /// </summary>
+        private Repetition JudgeRepetition(int span)
+        {
+            int current = history.Count - 1;
+
+            // 相手の手で生じた局面（手番側の番）が全て王手なら、相手が王手をかけ続けていた。
+            bool opponentKeptChecking = IsInCheck();
+            for (int i = current - 2; i > current - span; i -= 2)
+            {
+                opponentKeptChecking &= WasInCheck(i);
+            }
+
+            // 手番側の手で生じた局面（相手の番）が全て王手なら、手番側が王手をかけ続けていた。
+            bool keptChecking = true;
+            for (int i = current - 1; i > current - span; i -= 2)
+            {
+                keptChecking &= WasInCheck(i);
+            }
+
+            if (opponentKeptChecking && !keptChecking)
+            {
+                return Repetition.Win;
+            }
+            if (keptChecking && !opponentKeptChecking)
+            {
+                return Repetition.Lose;
+            }
+            return Repetition.Draw;
+        }
+
+        private bool WasInCheck(int index)
+        {
+            // 記録がないと王手でない扱いになり、連続王手の千日手を黙って引き分けにしてしまうため、記録済みを前提にする。
+            Debug.Assert(history[index].InCheck.HasValue);
+            return history[index].InCheck == true;
         }
 
         /// <summary>
@@ -357,5 +465,14 @@ namespace RobotTanuki
 
             return writer.ToString();
         }
+    }
+
+    /// <summary>千日手の判定結果（手番側から見た結果）。</summary>
+    public enum Repetition
+    {
+        None,
+        Draw,
+        Win,
+        Lose,
     }
 }
