@@ -76,13 +76,12 @@ namespace RobotTanuki
 
         public string ToUsiString()
         {
-            if (this == Resign)
+            foreach (var special in SpecialMoves)
             {
-                return "resign";
-            }
-            else if (this == Win)
-            {
-                return "win";
+                if (this == special.Move)
+                {
+                    return special.UsiString;
+                }
             }
 
             string usiString = "";
@@ -110,48 +109,23 @@ namespace RobotTanuki
 
         public static Move FromUsiString(Position position, string moveString)
         {
-            if (moveString == "resign")
+            foreach (var special in SpecialMoves)
             {
-                return Move.Resign;
-            }
-            else if (moveString == "win")
-            {
-                return Move.Win;
-            }
-            else if (moveString == "none")
-            {
-                return Move.None;
+                if (moveString == special.UsiString)
+                {
+                    return special.Move;
+                }
             }
 
-            var move = new Move();
+            int fileTo = moveString[2] - '1';
+            int rankTo = moveString[3] - 'a';
             if (moveString[1] == '*')
             {
-                // 駒打ちの指し手
-                move.FileFrom = -1;
-                move.RankFrom = -1;
-                move.PieceFrom = CharToPiece[moveString[0]];
-                if (position.SideToMove == Color.White)
-                {
-                    move.PieceFrom = move.PieceFrom.AsOpponentHandPiece();
-                }
-                move.Drop = true;
-            }
-            else
-            {
-                // 駒を移動する指し手
-                move.FileFrom = moveString[0] - '1';
-                move.RankFrom = moveString[1] - 'a';
-                move.PieceFrom = position.Board[move.FileFrom, move.RankFrom];
-                move.Drop = false;
+                var piece = CharToPiece[moveString[0]];
+                return CreateDrop(position, position.SideToMove == Color.White ? piece.AsOpponentHandPiece() : piece, fileTo, rankTo);
             }
 
-            move.FileTo = moveString[2] - '1';
-            move.RankTo = moveString[3] - 'a';
-            move.PieceTo = position.Board[move.FileTo, move.RankTo];
-
-            move.Promotion = moveString.Length == 5;
-            move.SideToMove = position.SideToMove;
-            return move;
+            return CreateBoardMove(position, moveString[0] - '1', moveString[1] - 'a', fileTo, rankTo, moveString.Length == 5);
         }
 
         /// <summary>
@@ -173,18 +147,12 @@ namespace RobotTanuki
         /// </summary>
         public static Move FromUshort(Position position, ushort move16)
         {
-            // 特別な手は参照で比べられているため、同じインスタンスを返す。
-            if (move16 == Resign16)
+            foreach (var special in SpecialMoves)
             {
-                return Resign;
-            }
-            if (move16 == Win16)
-            {
-                return Win;
-            }
-            if (move16 == None16)
-            {
-                return None;
+                if (move16 == special.Move.ToUshort())
+                {
+                    return special.Move;
+                }
             }
 
             int to = move16 & ((1 << 7) - 1);
@@ -193,18 +161,48 @@ namespace RobotTanuki
             bool promotion = ((move16 >> 15) & 1) == 1;
             int fileTo = to % Position.BoardSize;
             int rankTo = to / Position.BoardSize;
-            int fileFrom = drop ? -1 : from % Position.BoardSize;
-            int rankFrom = drop ? -1 : from / Position.BoardSize;
+            if (drop)
+            {
+                return CreateDrop(position, (Piece)from, fileTo, rankTo);
+            }
+
+            return CreateBoardMove(position, from % Position.BoardSize, from / Position.BoardSize, fileTo, rankTo, promotion);
+        }
+
+        /// <summary>
+        /// 盤上の駒を動かす指し手を作る。動かす駒・取る駒・手番は、その指し手を指す局面から埋める。
+        /// </summary>
+        private static Move CreateBoardMove(Position position, int fileFrom, int rankFrom, int fileTo, int rankTo, bool promotion)
+        {
             return new Move
             {
                 FileFrom = fileFrom,
                 RankFrom = rankFrom,
-                PieceFrom = drop ? (Piece)from : position.Board[fileFrom, rankFrom],
+                PieceFrom = position.Board[fileFrom, rankFrom],
                 FileTo = fileTo,
                 RankTo = rankTo,
                 PieceTo = position.Board[fileTo, rankTo],
-                Drop = drop,
+                Drop = false,
                 Promotion = promotion,
+                SideToMove = position.SideToMove,
+            };
+        }
+
+        /// <summary>
+        /// 持ち駒を打つ指し手を作る。取る駒・手番は、その指し手を指す局面から埋める。
+        /// </summary>
+        private static Move CreateDrop(Position position, Piece piece, int fileTo, int rankTo)
+        {
+            return new Move
+            {
+                FileFrom = -1,
+                RankFrom = -1,
+                PieceFrom = piece,
+                FileTo = fileTo,
+                RankTo = rankTo,
+                PieceTo = position.Board[fileTo, rankTo],
+                Drop = true,
+                Promotion = false,
                 SideToMove = position.SideToMove,
             };
         }
@@ -227,11 +225,15 @@ namespace RobotTanuki
             FileTo = 4,
         };
 
-        // 特別な手は「同じマスからそのマスへ動く」値になり、実在する指し手と重ならない。
+        // 特別な手とUSIでの表記。特別な手は参照で比べられているため、文字列や整数から戻すときはここにあるインスタンスを返す。
+        // 特別な手は「同じマスからそのマスへ動く」ありえない指し手にして、マスを手ごとに変え、ToUshortの値が実在する指し手や互いと重ならないようにする。
         // 静的フィールドは書かれた順に初期化されるので、Resign・Win・Noneより後に宣言する必要がある。
-        private static readonly ushort Resign16 = Resign.ToUshort();
-        private static readonly ushort Win16 = Win.ToUshort();
-        private static readonly ushort None16 = None.ToUshort();
+        private static readonly (Move Move, string UsiString)[] SpecialMoves =
+        {
+            (Resign, "resign"),
+            (Win, "win"),
+            (None, "none"),
+        };
 
         private static string[] RankToKanjiLetters = { "一", "二", "三", "四", "五", "六", "七", "八", "九" };
     }
