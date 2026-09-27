@@ -235,9 +235,11 @@ namespace RobotTanuki
 
             // 王手されていなければ「駒を取る手」「成る手」だけ、王手されていれば回避手を読む。
             // 成る手も対象にすることで、成り捨てや、成った直後に取り返される手を静止探索で検知できるようにする。
+            // 通常探索が置換表に残した最善手があれば先に読み、回避手の枠に良い手が入りやすくする。
+            Move? ttMove = table.TryGet(position.Hash, out var ttEntry) ? ttEntry.BestMove : null;
             var moves = MoveGenerator.Generate(position)
                 .Where(move => inCheck || move.PieceTo != Piece.NoPiece || move.Promotion)
-                .OrderByDescending(move => ScoreForOrdering(move, null));
+                .OrderByDescending(move => ScoreForOrdering(move, ttMove));
             int quietEvasionCount = 0;
             foreach (var move in moves)
             {
@@ -245,11 +247,11 @@ namespace RobotTanuki
                 // 詰まされない回避手が1つ見つかった後は、駒を取らない回避手を上限までしか読まない。
                 // 静止探索に入った直後の王手は、通常探索に王手延長がないため、受けを削ると無理な王手を
                 // 過大評価してしまうので対象外にする（爆発は静止探索の2手目以降で起きるので効果は変わらない）。
-                // 玉が駒を取る手はオーダリングで最後に回るため、breakではなくcontinueで読み飛ばす。
+                // 駒を取る手は全て駒を取らない手より前に並ぶので、以降の手も全て駒を取らない回避手になる。
                 bool isQuietEvasion = inCheck && move.PieceTo == Piece.NoPiece && ply < QuiescenceMaxPly;
                 if (isQuietEvasion && quietEvasionCount >= QuiescenceMaxQuietEvasions && bestValue > -MateThreshold)
                 {
-                    continue;
+                    break;
                 }
 
                 if (!MoveGenerator.IsLegal(position, move))
@@ -327,7 +329,9 @@ namespace RobotTanuki
                 return 0;
             }
 
-            return Evaluator.GetPieceValue(move.PieceTo) * 10 - Evaluator.GetPieceValue(move.PieceFrom);
+            // 玉や大駒で安い駒を取るとMVV-LVAの値がマイナスになり、駒を取らない手より後ろに並んでしまうため、
+            // 最も価値の大きい駒（玉）の価値を足して、駒を取る手が常に先に並ぶようにする。
+            return Evaluator.GetPieceValue(Piece.BlackKing) + Evaluator.GetPieceValue(move.PieceTo) * 10 - Evaluator.GetPieceValue(move.PieceFrom);
         }
     }
 }
