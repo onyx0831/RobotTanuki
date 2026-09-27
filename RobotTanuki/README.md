@@ -64,6 +64,6 @@ Program → Usi → Engine → Search → Evaluation → Domain
 - 枝刈りなど探索結果が変わる変更では、`scripts/selfplay/`の自己対局で変更前後のエンジンを対局させて強さを比べる。Docker上で、指定した2つのブランチ（コミット済みの内容）をビルドして対局させる
   ```bash
   docker build -t robottanuki-selfplay scripts/selfplay
-  docker run --rm -v "$(git rev-parse --show-toplevel)":/repo:ro robottanuki-selfplay <新しいブランチ> <基準のブランチ> --games 2 --byoyomi 1000
+  docker run --rm -it -v "$(git rev-parse --show-toplevel)":/repo:ro robottanuki-selfplay <新しいブランチ> <基準のブランチ> --games 2 --byoyomi 1000
   ```
-  ランダムな6手の開始局面から先後を入れ替えて指し、勝敗と棋譜（`position startpos moves ...`形式）を出力する
+  ランダムな6手の開始局面から先後を入れ替えて指し、勝敗と棋譜（`position startpos moves ...`形式）、エンジンごとの秒読みの超過回数を出力する。ブランチ名はホストのローカルブランチを指すので、`main`を基準にするときは先に`git pull`しておく（または`origin/main`を指定する）。スクリプトを変更したら`docker build`し直す

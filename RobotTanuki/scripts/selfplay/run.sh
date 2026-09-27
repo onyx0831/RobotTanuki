@@ -29,4 +29,5 @@ build() {
 
 build "$new_ref" /work/new
 build "$base_ref" /work/base
-python3 "$(dirname "$0")/selfplay.py" /work/new/out/RobotTanuki /work/base/out/RobotTanuki "$@"
+# pythonをPID 1にして、docker runのCtrl+C（SIGINT）が直接届くようにする。
+exec python3 "$(dirname "$0")/selfplay.py" /work/new/out/RobotTanuki /work/base/out/RobotTanuki "$@"
