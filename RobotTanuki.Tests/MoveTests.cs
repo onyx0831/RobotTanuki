@@ -38,14 +38,14 @@ public class MoveTests
     }
 
     [Fact]
-    public void 特別な手は戻すと同じインスタンスになる()
+    public void 特別な手は戻すと同じ特別な手になる()
     {
-        // 特別な手は参照で比べられているため、値が同じ別のインスタンスでは困る。
+        // 局面の駒で埋めて戻すと、同じマスに駒がある局面では特別な手と値が変わってしまう。
         var position = CreatePosition(Position.StartposSfen);
         foreach (var special in SpecialMoves)
         {
-            Assert.Same(special, Move.FromUshort(position, special.ToUshort()));
-            Assert.Same(special, Move.FromUsiString(position, special.ToUsiString()));
+            Assert.Equal(special, Move.FromUshort(position, special.ToUshort()));
+            Assert.Equal(special, Move.FromUsiString(position, special.ToUsiString()));
         }
     }
 

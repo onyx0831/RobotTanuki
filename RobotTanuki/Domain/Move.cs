@@ -9,19 +9,19 @@ using static RobotTanuki.PieceExtensions;
 namespace RobotTanuki
 {
     /// <summary>
-    /// 指し手を表すデータ構造
+    /// 指し手を表すデータ構造。指し手を生成するたびに確保してGCの負担にならないよう、構造体にしている。
     /// </summary>
-    public class Move
+    public readonly struct Move : IEquatable<Move>
     {
-        public int FileFrom { get; set; }
-        public int RankFrom { get; set; }
-        public Piece PieceFrom { get; set; }
-        public int FileTo { get; set; }
-        public int RankTo { get; set; }
-        public Piece PieceTo { get; set; }
-        public bool Drop { get; set; }
-        public bool Promotion { get; set; }
-        public Color SideToMove { get; set; }
+        public int FileFrom { get; init; }
+        public int RankFrom { get; init; }
+        public Piece PieceFrom { get; init; }
+        public int FileTo { get; init; }
+        public int RankTo { get; init; }
+        public Piece PieceTo { get; init; }
+        public bool Drop { get; init; }
+        public bool Promotion { get; init; }
+        public Color SideToMove { get; init; }
 
 
         /// 差し手の文字列変換
@@ -30,31 +30,32 @@ namespace RobotTanuki
             return $"{SideToMove.ToHumanReadableString()}{(char)('１' + FileTo)}{RankToKanjiLetters[RankTo]}{PieceFrom.ToHumanReadableString().Trim()[0]}{(Promotion ? "成" : "")}";
         }
 
-        // override object.Equals
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
-            //       
-            // See the full list of guidelines at
-            //   http://go.microsoft.com/fwlink/?LinkID=85237  
-            // and also the guidance for operator== at
-            //   http://go.microsoft.com/fwlink/?LinkId=85238
-            //
+            return obj is Move other && Equals(other);
+        }
 
-            if (obj == null || GetType() != obj.GetType())
-            {
-                return false;
-            }
+        public bool Equals(Move other)
+        {
+            return FileFrom == other.FileFrom
+                && RankFrom == other.RankFrom
+                && PieceFrom == other.PieceFrom
+                && FileTo == other.FileTo
+                && RankTo == other.RankTo
+                && PieceTo == other.PieceTo
+                && Drop == other.Drop
+                && Promotion == other.Promotion
+                && SideToMove == other.SideToMove;
+        }
 
-            var rh = (Move)obj;
-            return FileFrom == rh.FileFrom
-                && RankFrom == rh.RankFrom
-                && PieceFrom == rh.PieceFrom
-                && FileTo == rh.FileTo
-                && RankTo == rh.RankTo
-                && PieceTo == rh.PieceTo
-                && Drop == rh.Drop
-                && Promotion == rh.Promotion
-                && SideToMove == rh.SideToMove;
+        public static bool operator ==(Move left, Move right)
+        {
+            return left.Equals(right);
+        }
+
+        public static bool operator !=(Move left, Move right)
+        {
+            return !left.Equals(right);
         }
 
         // override object.GetHashCode
@@ -225,8 +226,8 @@ namespace RobotTanuki
             FileTo = 4,
         };
 
-        // 特別な手とUSIでの表記。特別な手は参照で比べられているため、文字列や整数から戻すときはここにあるインスタンスを返す。
-        // 特別な手は「同じマスからそのマスへ動く」ありえない指し手にして、マスを手ごとに変え、ToUshortの値が実在する指し手や互いと重ならないようにする。
+        // 特別な手とUSIでの表記。文字列や整数から戻すときは、局面の駒で埋めずにここにある特別な手を返す。
+        // 特別な手は値で比べるので、「同じマスからそのマスへ動く」ありえない指し手にしてマスを手ごとに変え、実在する指し手や互いと重ならないようにする。
         // 静的フィールドは書かれた順に初期化されるので、Resign・Win・Noneより後に宣言する必要がある。
         private static readonly (Move Move, string UsiString)[] SpecialMoves =
         {
