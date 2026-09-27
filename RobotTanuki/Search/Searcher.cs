@@ -43,6 +43,11 @@ namespace RobotTanuki
         // 玉が味方に守られるだけで駒の安全度の評価が+450動くため、それを上回る値にする。
         private const int FutilityMarginPerDepth = 500;
 
+        // 千日手を探す範囲。遡るほど判定が重くなるため、ほとんどの千日手が収まる手数に限る。
+        private const int MaxRepetitionPly = 16;
+
+        private const int DrawValue = 0;
+
         public static bool IsMateScore(int value)
         {
             return Math.Abs(value) > MateThreshold;
@@ -71,7 +76,7 @@ namespace RobotTanuki
                 BestMove result;
                 try
                 {
-                    result = Search(position, depth, -Infinity, Infinity, ref nodes, tokenForThisDepth);
+                    result = Search(position, depth, -Infinity, Infinity, ref nodes, tokenForThisDepth, isRoot: true);
                 }
                 catch (OperationCanceledException)
                 {
@@ -95,8 +100,19 @@ namespace RobotTanuki
         /// <summary>
         /// ネガマックス形式のアルファベータ法で探索する。
         /// </summary>
-        private static BestMove Search(Position position, int depth, int alpha, int beta, ref int nodes, CancellationToken cancellationToken, bool allowNullMove = true)
+        private static BestMove Search(Position position, int depth, int alpha, int beta, ref int nodes, CancellationToken cancellationToken, bool allowNullMove = true, bool isRoot = false)
         {
+            // 千日手になった局面は読まずに規則どおりの結果にする。根の局面は指す手を決める必要があるので対象外。
+            if (!isRoot)
+            {
+                var repetition = position.GetRepetition(MaxRepetitionPly);
+                if (repetition != Repetition.None)
+                {
+                    int repetitionValue = repetition == Repetition.Win ? Infinity : repetition == Repetition.Lose ? -Infinity : DrawValue;
+                    return new BestMove { Move = Move.None, Value = repetitionValue };
+                }
+            }
+
             // 縮小で深さが0を飛び越えて負になっても、再帰が止まるようにする。
             if (depth <= 0)
             {
@@ -120,7 +136,7 @@ namespace RobotTanuki
                 }
             }
 
-            bool inCheck = MoveGenerator.IsInCheck(position, position.SideToMove);
+            bool inCheck = position.IsInCheck();
 
             // Null Move Pruning: 一手パスしても（＝相手に手番をそのまま渡しても）なおbeta以上なら、
             // 自分が指せば当然beta以上のはずなので、全ての指し手を調べずに打ち切る。
@@ -203,7 +219,7 @@ namespace RobotTanuki
                             && !inCheck
                             && move.PieceTo == Piece.NoPiece
                             && !move.Promotion
-                            && !MoveGenerator.IsInCheck(position, position.SideToMove)
+                            && !position.IsInCheck()
                             ? 1 : 0;
                         ++nodes;
                         childBestMove = Search(position, depth - 1 - reduction, -alpha - 1, -alpha, ref nodes, cancellationToken);
@@ -271,7 +287,7 @@ namespace RobotTanuki
         /// </summary>
         private static BestMove QuiescenceSearch(Position position, int alpha, int beta, int ply, ref int nodes, CancellationToken cancellationToken)
         {
-            bool inCheck = MoveGenerator.IsInCheck(position, position.SideToMove);
+            bool inCheck = position.IsInCheck();
             // 王手されている間はstand patを使わないので、Evaluateの呼び出し（利きの計算を含み重い）は
             // 実際に値が必要になる場合（王手されていない場合、または下のply<=0の安全弁）まで遅らせる。
             int standPat = inCheck ? 0 : Evaluator.Evaluate(position);

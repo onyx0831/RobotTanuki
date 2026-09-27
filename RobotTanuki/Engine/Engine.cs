@@ -46,11 +46,14 @@ namespace RobotTanuki
             WaitForSearchToStop();
 
             position.Set(sfen ?? Position.StartposSfen);
+            // 連続王手の千日手の判定で、対局中の各局面が王手だったかを使うため、ここで記録しておく。
+            position.IsInCheck();
 
             foreach (var moveString in moveStrings)
             {
                 var move = Move.FromUsiString(position, moveString);
                 position.DoMove(move);
+                position.IsInCheck();
             }
         }
 
