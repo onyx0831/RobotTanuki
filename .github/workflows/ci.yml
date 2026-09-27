@@ -27,4 +27,9 @@ jobs:
         run: dotnet build --no-restore
 
       - name: Format check
-        run: dotnet format --verify-no-changes
+        run: |
+          dotnet format --verify-no-changes
+          dotnet format ../RobotTanuki.Tests --verify-no-changes
+
+      - name: Unit test
+        run: dotnet test ../RobotTanuki.Tests
