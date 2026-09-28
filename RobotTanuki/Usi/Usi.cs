@@ -115,6 +115,7 @@ namespace RobotTanuki
                         break;
 
                     case "gameover":
+                        engine.GameOver();
                         break;
 
                     case "go":
