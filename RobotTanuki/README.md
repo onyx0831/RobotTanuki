@@ -15,6 +15,7 @@ RobotTanuki/
   Evaluation/   … 局面の評価
   Search/       … 探索
   scripts/      … 動作確認用のスクリプト（回帰確認・自己対局）
+RobotTanuki.Tests/ … ユニットテスト（xUnit）。本体のプロジェクトに取り込まれないよう、RobotTanuki/の隣に置いている
 ```
 
 依存の向き（循環なし）:
@@ -66,7 +67,8 @@ Program → Usi → Engine → Search → Evaluation → Domain
 ## 動作確認する
 コマンドは`RobotTanuki/`ディレクトリで実行する。
 
-- 探索・指し手生成まわりを変更したら、`./scripts/verify.sh` を実行して既知の局面での挙動が壊れていないことを確認する（ビルド・整形チェック・合法手数・bestmoveのチェックをまとめて行う）
+- 探索・指し手生成まわりを変更したら、`./scripts/verify.sh` を実行して既知の局面での挙動が壊れていないことを確認する（ビルド・整形チェック・ユニットテスト・合法手数・bestmoveのチェックをまとめて行う）
+- 指し手の変換など、USIから見えない内部の処理は、リポジトリ直下の`RobotTanuki.Tests`（xUnit）でテストする。単体で実行するときは`dotnet test ../RobotTanuki.sln`（リポジトリ直下の`RobotTanuki.sln`に本体とテストのプロジェクトをまとめている）
 - 枝刈りなど探索結果が変わる変更では、`scripts/selfplay/`の自己対局で変更前後のエンジンを対局させて強さを比べる。Docker上で、指定した2つのブランチ（コミット済みの内容）をビルドして対局させる
   ```bash
   docker build -t robottanuki-selfplay scripts/selfplay
