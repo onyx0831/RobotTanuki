@@ -14,9 +14,9 @@ namespace RobotTanuki
         public int Value { get; set; }
 
         /// <summary>
-        /// 指し手
+        /// 指し手。構造体なので設定し忘れても既定値（1a→1a）の手として通ってしまうため、必ず設定させる。
         /// </summary>
-        public Move Move { get; set; }
+        public required Move Move { get; set; }
 
         /// <summary>
         /// 次の手（読み筋の末端ではnull）

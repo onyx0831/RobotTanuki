@@ -38,14 +38,18 @@ public class MoveTests
     }
 
     [Fact]
-    public void 特別な手は戻すと同じインスタンスになる()
+    public void 特別な手は戻すと同じ特別な手になる()
     {
-        // 特別な手は参照で比べられているため、値が同じ別のインスタンスでは困る。
+        // 局面の駒で埋めて戻すと、同じマスに駒がある局面では特別な手と値が変わってしまう。
         var position = CreatePosition(Position.StartposSfen);
         foreach (var special in SpecialMoves)
         {
-            Assert.Same(special, Move.FromUshort(position, special.ToUshort()));
-            Assert.Same(special, Move.FromUsiString(position, special.ToUsiString()));
+            var fromUshort = Move.FromUshort(position, special.ToUshort());
+            AssertSameMove(special, fromUshort);
+            AssertSameMove(special, Move.FromUsiString(position, special.ToUsiString()));
+            // 本体は == や != で特別な手と比べているので、演算子でも確かめる。
+            Assert.True(fromUshort == special);
+            Assert.False(fromUshort != special);
         }
     }
 
@@ -58,8 +62,20 @@ public class MoveTests
             Assert.False(special.Drop);
             Assert.Equal(special.FileFrom, special.FileTo);
             Assert.Equal(special.RankFrom, special.RankTo);
+            Assert.True(special.IsSpecial);
         }
         Assert.Equal(SpecialMoves.Length, SpecialMoves.Select(special => special.ToUshort()).Distinct().Count());
+    }
+
+    [Theory]
+    [MemberData(nameof(Positions))]
+    public void 合法手は特別な手と判定されない(string sfen)
+    {
+        var position = CreatePosition(sfen);
+        foreach (var move in LegalMoves(position))
+        {
+            Assert.False(move.IsSpecial);
+        }
     }
 
     private static Position CreatePosition(string sfen)
