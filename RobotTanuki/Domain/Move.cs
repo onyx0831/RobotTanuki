@@ -11,7 +11,7 @@ namespace RobotTanuki
     /// <summary>
     /// 指し手を表すデータ構造。指し手を生成するたびに確保してGCの負担にならないよう、構造体にしている。
     /// </summary>
-    public readonly struct Move : IEquatable<Move>
+    public readonly record struct Move
     {
         public int FileFrom { get; init; }
         public int RankFrom { get; init; }
@@ -30,50 +30,10 @@ namespace RobotTanuki
             return $"{SideToMove.ToHumanReadableString()}{(char)('１' + FileTo)}{RankToKanjiLetters[RankTo]}{PieceFrom.ToHumanReadableString().Trim()[0]}{(Promotion ? "成" : "")}";
         }
 
-        public override bool Equals(object? obj)
-        {
-            return obj is Move other && Equals(other);
-        }
-
-        public bool Equals(Move other)
-        {
-            return FileFrom == other.FileFrom
-                && RankFrom == other.RankFrom
-                && PieceFrom == other.PieceFrom
-                && FileTo == other.FileTo
-                && RankTo == other.RankTo
-                && PieceTo == other.PieceTo
-                && Drop == other.Drop
-                && Promotion == other.Promotion
-                && SideToMove == other.SideToMove;
-        }
-
-        public static bool operator ==(Move left, Move right)
-        {
-            return left.Equals(right);
-        }
-
-        public static bool operator !=(Move left, Move right)
-        {
-            return !left.Equals(right);
-        }
-
-        // override object.GetHashCode
-        public override int GetHashCode()
-        {
-            // boost/container_hash/hash.hpp - 1.74.0 https://www.boost.org/doc/libs/1_74_0/boost/container_hash/hash.hpp
-            int seed = 0;
-            seed ^= FileFrom + (seed << 6) + (seed >> 2);
-            seed ^= RankFrom + (seed << 6) + (seed >> 2);
-            seed ^= (int)PieceFrom + (seed << 6) + (seed >> 2);
-            seed ^= FileTo + (seed << 6) + (seed >> 2);
-            seed ^= RankTo + (seed << 6) + (seed >> 2);
-            seed ^= (int)PieceTo + (seed << 6) + (seed >> 2);
-            seed ^= Convert.ToInt32(Drop) + (seed << 6) + (seed >> 2);
-            seed ^= Convert.ToInt32(Promotion) + (seed << 6) + (seed >> 2);
-            seed ^= (int)SideToMove + (seed << 6) + (seed >> 2);
-            return seed;
-        }
+        /// <summary>
+        /// 投了などの特別な手か。特別な手は「同じマスからそのマスへ動く」ありえない指し手にしている。
+        /// </summary>
+        public bool IsSpecial => !Drop && FileFrom == FileTo && RankFrom == RankTo;
 
         public string ToUsiString()
         {

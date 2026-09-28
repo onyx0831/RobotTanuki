@@ -156,7 +156,7 @@ namespace RobotTanuki
                             else
                             {
                                 var ponderMove = progress.Result.Next;
-                                if (ponderMove != null && ponderMove.Move != Move.Resign && ponderMove.Move != Move.None)
+                                if (ponderMove != null && !ponderMove.Move.IsSpecial)
                                 {
                                     Console.WriteLine($"bestmove {progress.Result.Move.ToUsiString()} ponder {ponderMove.Move.ToUsiString()}");
                                 }
@@ -215,7 +215,7 @@ namespace RobotTanuki
         {
             var moveStrings = new List<string>();
             BestMove? current = bestMove;
-            while (current != null && current.Move != Move.Resign && current.Move != Move.None)
+            while (current != null && !current.Move.IsSpecial)
             {
                 moveStrings.Add(current.Move.ToUsiString());
                 current = current.Next;

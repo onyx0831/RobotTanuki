@@ -44,8 +44,12 @@ public class MoveTests
         var position = CreatePosition(Position.StartposSfen);
         foreach (var special in SpecialMoves)
         {
-            Assert.Equal(special, Move.FromUshort(position, special.ToUshort()));
-            Assert.Equal(special, Move.FromUsiString(position, special.ToUsiString()));
+            var fromUshort = Move.FromUshort(position, special.ToUshort());
+            AssertSameMove(special, fromUshort);
+            AssertSameMove(special, Move.FromUsiString(position, special.ToUsiString()));
+            // 本体は == や != で特別な手と比べているので、演算子でも確かめる。
+            Assert.True(fromUshort == special);
+            Assert.False(fromUshort != special);
         }
     }
 
@@ -58,8 +62,20 @@ public class MoveTests
             Assert.False(special.Drop);
             Assert.Equal(special.FileFrom, special.FileTo);
             Assert.Equal(special.RankFrom, special.RankTo);
+            Assert.True(special.IsSpecial);
         }
         Assert.Equal(SpecialMoves.Length, SpecialMoves.Select(special => special.ToUshort()).Distinct().Count());
+    }
+
+    [Theory]
+    [MemberData(nameof(Positions))]
+    public void 合法手は特別な手と判定されない(string sfen)
+    {
+        var position = CreatePosition(sfen);
+        foreach (var move in LegalMoves(position))
+        {
+            Assert.False(move.IsSpecial);
+        }
     }
 
     private static Position CreatePosition(string sfen)
