@@ -66,6 +66,15 @@ namespace RobotTanuki
             }
         }
 
+        /// <summary>
+        /// 対局が終わったときに呼ぶ。探索中（ponderなど）の探索が次の対局まで残らないよう、止めて終了を待つ。
+        /// </summary>
+        public void GameOver()
+        {
+            Stop();
+            WaitForSearchToStop();
+        }
+
         public void NewGame()
         {
             Stop();
