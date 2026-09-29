@@ -179,7 +179,7 @@ namespace RobotTanuki
                     onError?.Invoke(ex.Message);
                     onSearchCompleted(new SearchProgress
                     {
-                        Result = new BestMove { Move = Move.Resign, Value = -1_000_000_000 },
+                        Result = new BestMove { Move = Move.Resign, Value = -Searcher.Infinity },
                         Depth = 0,
                         Nodes = 0,
                         TimeMs = (int)(DateTime.Now - beginTime).TotalMilliseconds,

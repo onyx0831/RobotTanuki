@@ -1,7 +1,28 @@
 namespace RobotTanuki.Tests;
 
+// 置換表は静的な変数で共有されているため、探索を呼ぶテストはこのクラスにまとめ、並列に実行されないようにする。
 public class SearcherTests
 {
+    [Theory]
+    [InlineData(1)]
+    [InlineData(3)]
+    public void 一手詰めの局面では根から1手で詰ませる値と手を返す(int depth)
+    {
+        // 深さ1では静止探索が、深さ3では通常探索が詰みを見つけるので、両方の経路を確かめる。
+        var bestMove = Search("4k4/9/4P4/9/9/9/9/9/4K4 b G 1", depth);
+        Assert.Equal(Searcher.Infinity - 1, bestMove.Value);
+        Assert.Equal("G*5b", bestMove.Move.ToUsiString());
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(3)]
+    public void 詰まされている局面では根で詰まされた値を返す(int depth)
+    {
+        var bestMove = Search("4k4/4G4/4P4/9/9/9/9/9/4K4 w - 2", depth);
+        Assert.Equal(-Searcher.Infinity, bestMove.Value);
+    }
+
     [Fact]
     public void 詰ませる値は置換表に今の局面からの手数で保存され根からの手数に戻る()
     {
@@ -39,5 +60,12 @@ public class SearcherTests
     {
         Assert.Equal(7, Searcher.PliesUntilMate(Searcher.Infinity - 7));
         Assert.Equal(-7, Searcher.PliesUntilMate(-Searcher.Infinity + 7));
+    }
+
+    private static BestMove Search(string sfen, int depth)
+    {
+        var position = new Position();
+        position.Set(sfen);
+        return Searcher.SearchIterative(position, depth, CancellationToken.None, out _);
     }
 }

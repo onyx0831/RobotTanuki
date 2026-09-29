@@ -330,7 +330,7 @@ namespace RobotTanuki
         {
             bool inCheck = position.IsInCheck();
             // 王手されている間はstand patを使わないので、Evaluateの呼び出し（利きの計算を含み重い）は
-            // 実際に値が必要になる場合（王手されていない場合、または下のply<=0の安全弁）まで遅らせる。
+            // 実際に値が必要になる場合（王手されていない場合、または下のremainingPly<=0の安全弁）まで遅らせる。
             int standPat = inCheck ? 0 : Evaluator.Evaluate(position);
 
             if (!inCheck)
