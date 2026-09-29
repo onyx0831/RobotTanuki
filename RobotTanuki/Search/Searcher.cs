@@ -20,10 +20,10 @@ namespace RobotTanuki
         /// <summary>今の置換表を作ったときに指定された大きさ（メガバイト）。</summary>
         public static int HashMegabytes { get; private set; } = DefaultHashMegabytes;
 
-        // intの範囲で安全に符号反転できる大きさ。詰みが今起きた瞬間の値としても使う。
-        private const int Infinity = 1_000_000_000;
+        // intの範囲で安全に符号反転できる大きさ。詰みの値は、根から詰むまでの手数をこれから引いて表す。
+        internal const int Infinity = 1_000_000_000;
 
-        // 減衰させても通常の評価値と混同しない余裕を持たせた閾値。
+        // 根からの手数を引いても、通常の評価値と混同しない余裕を持たせた閾値。
         private const int MateThreshold = Infinity - 1000;
 
         // 静止探索の延長上限。取り合い・王手が続く限り延長するが、際限なく続かないための安全弁。
@@ -65,6 +65,23 @@ namespace RobotTanuki
             GC.Collect();
             table = TranspositionTable.FromMegabytes(megabytes);
             HashMegabytes = megabytes;
+        }
+
+        /// <summary>
+        /// 詰みの値を、根からの手数から今の局面からの手数に直して置換表に保存する。
+        /// 同じ局面に別の手数で来たときにも、正しい手数に戻せるようにするため。
+        /// </summary>
+        internal static int ToTranspositionTableValue(int value, int ply)
+        {
+            return value > MateThreshold ? value + ply : value < -MateThreshold ? value - ply : value;
+        }
+
+        /// <summary>
+        /// 置換表に保存した詰みの値（今の局面からの手数）を、根からの手数に戻す。
+        /// </summary>
+        internal static int FromTranspositionTableValue(int value, int ply)
+        {
+            return value > MateThreshold ? value - ply : value < -MateThreshold ? value + ply : value;
         }
 
         public static bool IsMateScore(int value)
@@ -128,7 +145,7 @@ namespace RobotTanuki
                 var repetition = position.GetRepetition(ply, MaxRepetitionPly);
                 if (repetition != Repetition.None)
                 {
-                    int repetitionValue = repetition == Repetition.Win ? Infinity : repetition == Repetition.Lose ? -Infinity : DrawValue;
+                    int repetitionValue = repetition == Repetition.Win ? Infinity - ply : repetition == Repetition.Lose ? -Infinity + ply : DrawValue;
                     return new BestMove { Move = Move.None, Value = repetitionValue };
                 }
             }
@@ -136,7 +153,7 @@ namespace RobotTanuki
             // 縮小で深さが0を飛び越えて負になっても、再帰が止まるようにする。
             if (depth <= 0)
             {
-                return QuiescenceSearch(position, alpha, beta, QuiescenceMaxPly, ref nodes, cancellationToken);
+                return QuiescenceSearch(position, alpha, beta, ply, QuiescenceMaxPly, ref nodes, cancellationToken);
             }
 
             ulong hash = position.Hash;
@@ -148,11 +165,12 @@ namespace RobotTanuki
                 // 根で打ち切ると、読み筋もponderの手も出ず、手順に依存する千日手の値で指す手が決まることもあるため、根では打ち切らない。
                 if (ply > 0 && ttEntry.Depth >= depth)
                 {
+                    int ttValue = FromTranspositionTableValue(ttEntry.Value, ply);
                     if (ttEntry.Bound == TranspositionTableBound.Exact
-                        || (ttEntry.Bound == TranspositionTableBound.LowerBound && ttEntry.Value >= beta)
-                        || (ttEntry.Bound == TranspositionTableBound.UpperBound && ttEntry.Value <= alpha))
+                        || (ttEntry.Bound == TranspositionTableBound.LowerBound && ttValue >= beta)
+                        || (ttEntry.Bound == TranspositionTableBound.UpperBound && ttValue <= alpha))
                     {
-                        return new BestMove { Move = Move.FromUshort(position, ttMove16.Value), Value = ttEntry.Value };
+                        return new BestMove { Move = Move.FromUshort(position, ttMove16.Value), Value = ttValue };
                     }
                 }
             }
@@ -264,12 +282,6 @@ namespace RobotTanuki
                 }
 
                 int value = -childBestMove.Value;
-                if (IsMateScore(value))
-                {
-                    // 速い詰みほど絶対値が大きくなるよう、1手伝播するごとに1減らす。
-                    value += value > 0 ? -1 : 1;
-                }
-
                 if (bestValue < value)
                 {
                     bestValue = value;
@@ -288,10 +300,16 @@ namespace RobotTanuki
                 }
             }
 
+            if (bestMove == Move.Resign)
+            {
+                // 合法手が1つもない＝この局面で詰んでいる。
+                bestValue = -Infinity + ply;
+            }
+
             var bound = bestValue <= originalAlpha ? TranspositionTableBound.UpperBound
                 : bestValue >= beta ? TranspositionTableBound.LowerBound
                 : TranspositionTableBound.Exact;
-            table.Store(hash, depth, bestValue, bestMove, bound);
+            table.Store(hash, depth, ToTranspositionTableValue(bestValue, ply), bestMove, bound);
 
             return new BestMove
             {
@@ -306,11 +324,13 @@ namespace RobotTanuki
         /// 「地平線効果」が起きるため、取り合いが落ち着くまで（駒を取る手が尽きるまで）延長して読む。
         /// 王手されている場合はstand pat（今の評価値をそのまま採用する）をせず、回避手を読む。
         /// </summary>
-        private static BestMove QuiescenceSearch(Position position, int alpha, int beta, int ply, ref int nodes, CancellationToken cancellationToken)
+        /// <param name="ply">根からの手数</param>
+        /// <param name="remainingPly">あと何手まで延長できるか</param>
+        private static BestMove QuiescenceSearch(Position position, int alpha, int beta, int ply, int remainingPly, ref int nodes, CancellationToken cancellationToken)
         {
             bool inCheck = position.IsInCheck();
             // 王手されている間はstand patを使わないので、Evaluateの呼び出し（利きの計算を含み重い）は
-            // 実際に値が必要になる場合（王手されていない場合、または下のply<=0の安全弁）まで遅らせる。
+            // 実際に値が必要になる場合（王手されていない場合、または下のremainingPly<=0の安全弁）まで遅らせる。
             int standPat = inCheck ? 0 : Evaluator.Evaluate(position);
 
             if (!inCheck)
@@ -325,7 +345,7 @@ namespace RobotTanuki
                 }
             }
 
-            if (ply <= 0)
+            if (remainingPly <= 0)
             {
                 // 延長の安全弁。ここまで来たら取り合い・王手の連続が続いていても評価値で打ち切る。
                 return new BestMove { Move = Move.None, Value = inCheck ? Evaluator.Evaluate(position) : standPat };
@@ -344,7 +364,7 @@ namespace RobotTanuki
                 // 「王手→逃げ・合駒→取りながら王手」の連鎖で爆発するため、駒を取らない回避手は上限までにする。
                 // 詰まされない手が見つかるまで制限しないのは、詰みと誤判定しないため。
                 // 入口の王手を除くのは、受けを削ると無理な王手を過大評価するため。
-                bool isQuietEvasion = inCheck && move.PieceTo == Piece.NoPiece && ply < QuiescenceMaxPly;
+                bool isQuietEvasion = inCheck && move.PieceTo == Piece.NoPiece && remainingPly < QuiescenceMaxPly;
                 if (isQuietEvasion && quietEvasionCount >= QuiescenceMaxQuietEvasions && bestValue > -MateThreshold)
                 {
                     break;
@@ -367,7 +387,7 @@ namespace RobotTanuki
                 position.DoMove(move);
                 try
                 {
-                    childBestMove = QuiescenceSearch(position, -beta, -alpha, ply - 1, ref nodes, cancellationToken);
+                    childBestMove = QuiescenceSearch(position, -beta, -alpha, ply + 1, remainingPly - 1, ref nodes, cancellationToken);
                 }
                 finally
                 {
@@ -375,11 +395,6 @@ namespace RobotTanuki
                 }
 
                 int value = -childBestMove.Value;
-                if (IsMateScore(value))
-                {
-                    value += value > 0 ? -1 : 1;
-                }
-
                 if (bestValue < value)
                 {
                     bestValue = value;
@@ -400,8 +415,8 @@ namespace RobotTanuki
 
             if (inCheck && bestMove == Move.Resign)
             {
-                // 王手を回避する合法手が1つもない＝詰み。
-                return new BestMove { Move = Move.Resign, Value = -Infinity };
+                // 王手を回避する合法手が1つもない＝この局面で詰んでいる。
+                return new BestMove { Move = Move.Resign, Value = -Infinity + ply };
             }
 
             return new BestMove
